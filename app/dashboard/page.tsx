@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
+import PublicUrl from "./PublicUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,9 @@ export default async function Dashboard() {
         <p className="eyebrow">MINHA EMPRESA</p>
         <h1>{company.name}</h1>
         <p>Edite fotos, cores e crie os quadrados que quiser.</p>
+
+        <PublicUrl slug={company.slug} />
+
         <div className="dashgrid">
           <Link href="/dashboard/editor"><b>✦</b><strong>Editor</strong><small>Fotos e cores</small></Link>
           <Link href="/dashboard/actions"><b>⌁</b><strong>Ações</strong><small>WhatsApp, PIX, Google…</small></Link>
