@@ -25,7 +25,7 @@ export default async function PublicPage({params}:{params:Promise<{slug:string}>
     <div className="bio-identity"><div className="bio-name-row"><h1>{c.name}</h1><span className="bio-check">✓</span></div>{c.description&&<p>{c.description}</p>}{c.address&&<div className="bio-location"><MapPin size={13}/>{c.address}</div>}</div>
     <div className="bio-actions">{(actions||[]).map((a:any)=><a className="bio-action" href={a.url||"#"} data-action-id={a.id} key={a.id}><span className="bio-action-icon">{icon(a.type)}</span><b>{a.label}</b><ArrowUpRight className="bio-action-arrow" size={16}/></a>)}</div>
     {(qrs||[]).map((q:any)=><div className="bio-qr" key={q.id}><div className="bio-qr-head"><span><QrLabel/></span><b>{q.name}</b></div><img src={q.image_url} alt={q.name}/>{q.description&&<p>{q.description}</p>}</div>)}
-    <ShareButton url={`${process.env.NEXT_PUBLIC_SITE_URL||""}/p/${c.slug}`} />
+    <ShareButton />
     <footer className="bio-footer"><span><Wifi size={12}/> NFC SMART</span><small>Toque. Conecte. Experimente.</small></footer>
    </div>
   </section>
