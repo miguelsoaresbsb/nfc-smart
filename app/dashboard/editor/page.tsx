@@ -17,7 +17,7 @@ export default function Editor(){
   setLoading(true); const {data:user}=await s.auth.getUser(); if(!user.user){location.href="/login";return}
   const {data:admin}=await s.from("platform_admins").select("user_id").eq("user_id",user.user.id).maybeSingle();
   let companyId:string|null=null;
-  if(admin){const {data:c}=await s.from("companies").select("*").order("created_at").limit(1).maybeSingle(); companyId=c?.id||null}
+  if(admin){const {data:c}=await s.from("companies").select("*").order("name").limit(1).maybeSingle(); companyId=c?.id||null}
   else {const {data:m}=await s.from("company_members").select("company_id").eq("user_id",user.user.id).limit(1).maybeSingle(); companyId=m?.company_id||null}
   if(!companyId){setLoading(false);return}
   const [{data:c},{data:a},{data:q}]=await Promise.all([
