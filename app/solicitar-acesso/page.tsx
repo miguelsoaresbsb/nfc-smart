@@ -45,8 +45,7 @@ export default function SolicitarAcesso() {
         return;
       }
 
-      setSuccess(true);
-      setLoading(false);
+      // The application uses administrator approval as the access gate; email confirmation is not required here.\n      if (!data.session) {\n        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });\n        if (!signInError) {\n          window.location.href = "/acesso-pendente";\n          return;\n        }\n      }\n\n      setSuccess(true);\n      setLoading(false);
       return;
     }
 
