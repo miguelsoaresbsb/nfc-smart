@@ -8,7 +8,7 @@ type Company={id:string;name:string;slug:string;logo_url:string|null;description
 type QR={id:string;name:string;image_url:string;storage_path:string;description:string|null;position:number;enabled:boolean};
 type Action={id:string;type:string;label:string;url:string|null;position:number;enabled:boolean};
 
-const actionTypes=[["whatsapp","WhatsApp",MessageCircle],["instagram","Instagram",Camera],["google","Google avaliações",Star],["maps","Localização",MapPin],["website","Site",Globe],["phone","Telefone",Phone],["menu","Cardápio",Menu],["pix","PIX",WalletCards],["custom","Personalizado",ArrowUpRight]];
+const actionTypes:any[]=[["whatsapp","WhatsApp",MessageCircle],["instagram","Instagram",Camera],["google","Google avaliações",Star],["maps","Localização",MapPin],["website","Site",Globe],["phone","Telefone",Phone],["menu","Cardápio",Menu],["pix","PIX",WalletCards],["custom","Personalizado",ArrowUpRight]];
 
 export default function Editor(){
  const s=createClient(); const [company,setCompany]=useState<Company|null>(null); const [actions,setActions]=useState<Action[]>([]); const [qrs,setQrs]=useState<QR[]>([]);
