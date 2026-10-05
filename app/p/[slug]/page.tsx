@@ -1,2 +1,37 @@
-import {notFound} from "next/navigation";import {ArrowUpRight,MapPin,MessageCircle,Phone,Share2,Sparkles,Star,Wifi} from "lucide-react";import {createClient} from "@/lib/supabase-server";
-export default async function PublicPage({params}:{params:Promise<{slug:string}>}){const {slug}=await params;const s=await createClient();const {data:c}=await s.from("companies").select("*").eq("slug",slug).maybeSingle();if(!c)return notFound();const {data:sub}=await s.from("subscriptions").select("status,expires_at").eq("company_id",c.id).maybeSingle();const active=sub?.status==="active"&&(!sub.expires_at||new Date(sub.expires_at)>new Date());if(!active)return <main className="public-page public-offline"><div className="offline-card"><div className="public-mini-brand"><Wifi size={14}/> NFC SMART</div><div className="offline-icon"><Sparkles size={20}/></div><h1>Página temporariamente indisponível</h1><p>Esta página será reativada assim que a assinatura da empresa estiver regularizada.</p></div></main>;const [{data:actions},{data:qrs},{data:profile}]=await Promise.all([s.from("actions").select("*").eq("company_id",c.id).eq("enabled",true).order("position"),s.from("qr_codes").select("*").eq("company_id",c.id).eq("enabled",true).order("position"),s.from("profiles").select("cover_url").eq("company_id",c.id).maybeSingle()]);const cover=profile?.cover_url;return <main className="public-page" style={{background:c.background_color||"#f5f5f5"}}><div className="public-wrap"><div className="public-backdrop"/>{cover?<div className="public-hero-cover" style={{backgroundImage:"url("+cover+")"}}/>:<div className="public-hero-cover public-cover-placeholder"/>}<section className="public-card">{c.logo_url?<img className="public-avatar" src={c.logo_url} alt={c.name}/>:<div className="public-avatar public-initial">{c.name.slice(0,1)}</div>}<div className="public-verified"><span/><b>{c.name}</b></div>{c.description&&<p className="public-desc">{c.description}</p>} {c.address&&<div className="public-location"><MapPin size={13}/>{c.address}</div>}<div className="public-actions">{(actions||[]).map((a:any)=><a className="public-action" style={{background:c.primary_color||"#111",color:c.secondary_color||"#fff"}} href={a.url||"#"} key={a.id}><span>{a.type==="whatsapp"?<MessageCircle size={17}/>:a.type==="phone"?<Phone size={17}/>:a.type==="google"?<Star size={17}/>:a.type==="maps"?<MapPin size={17}/>:<ArrowUpRight size={17}/>}</span>{a.label}<ArrowUpRight size={15}/></a>)}</div>{(qrs||[]).map((q:any)=><div className="public-qr" key={q.id}><img src={q.image_url} alt={q.name}/>{q.description&&<span>{q.description}</span>}</div>)}<div className="public-share"><Share2 size={14}/> Compartilhe esta página</div><footer><span className="public-mini-brand"><Wifi size={12}/> NFC SMART</span><small>Toque. Conecte. Experimente.</small></footer></section></div></main>}
+import {notFound} from "next/navigation";
+import {ArrowUpRight,MapPin,MessageCircle,Phone,Share2,Sparkles,Star,Wifi,Instagram,Globe,Wallet} from "lucide-react";
+import {createClient} from "@/lib/supabase-server";
+
+export default async function PublicPage({params}:{params:Promise<{slug:string}>}){
+ const {slug}=await params; const s=await createClient();
+ const {data:c}=await s.from("companies").select("*").eq("slug",slug).maybeSingle();
+ if(!c)return notFound();
+ const {data:sub}=await s.from("subscriptions").select("status,expires_at").eq("company_id",c.id).maybeSingle();
+ const active=sub?.status==="active"&&(!sub.expires_at||new Date(sub.expires_at)>new Date());
+ if(!active)return <main className="public-page public-offline"><div className="offline-card"><div className="public-mini-brand"><Wifi size={14}/> NFC SMART</div><div className="offline-icon"><Sparkles size={20}/></div><h1>Página temporariamente indisponível</h1><p>Esta página será reativada assim que a assinatura da empresa estiver regularizada.</p></div></main>;
+ const [{data:actions},{data:qrs},{data:profile}]=await Promise.all([
+  s.from("actions").select("*").eq("company_id",c.id).eq("enabled",true).order("position"),
+  s.from("qr_codes").select("*").eq("company_id",c.id).eq("enabled",true).order("position"),
+  s.from("profiles").select("cover_url").eq("company_id",c.id).maybeSingle()
+ ]);
+ const cover=profile?.cover_url;
+ const actionIcon=(type:string)=>type==="whatsapp"?<MessageCircle size={18}/>:type==="phone"?<Phone size={18}/>:type==="google"?<Star size={18}/>:type==="maps"?<MapPin size={18}/>:type==="instagram"?<Instagram size={18}/>:type==="website"?<Globe size={18}/>:type==="pix"?<Wallet size={18}/>:<ArrowUpRight size={18}/>;
+ return <main className="public-page" style={{background:c.background_color||"#f7f7f4"}}>
+  <div className={cover?"public-wrap has-cover":"public-wrap bio-classic"}>
+   <div className="public-backdrop"/>
+   {cover&&<div className="public-hero-cover" style={{backgroundImage:"url("+cover+")"}}/>}
+   <section className="public-card">
+    <div className="public-profile-head">
+     {c.logo_url?<img className="public-avatar" src={c.logo_url} alt={"Foto de perfil de "+c.name}/>:<div className="public-avatar public-initial">{c.name.slice(0,1).toUpperCase()}</div>}
+     <h1 className="public-name">{c.name}</h1>
+     {c.description&&<p className="public-desc">{c.description}</p>}
+     {c.address&&<div className="public-location"><MapPin size={13}/>{c.address}</div>}
+    </div>
+    <div className="public-actions">{(actions||[]).map((a:any)=><a className="public-action" style={{background:c.primary_color||"#111111",color:c.secondary_color||"#ffffff",borderColor:c.primary_color||"#111111"}} href={a.url||"#"} key={a.id} target={a.url?.startsWith("http")?"_blank":undefined} rel={a.url?.startsWith("http")?"noreferrer":undefined}><span>{actionIcon(a.type)}</span><strong>{a.label}</strong><ArrowUpRight className="public-action-arrow" size={16}/></a>)}</div>
+    {(qrs||[]).map((q:any)=><div className="public-qr" key={q.id}><img src={q.image_url} alt={q.name}/><b>{q.name}</b>{q.description&&<span>{q.description}</span>}</div>)}
+    <div className="public-share"><Share2 size={14}/> Compartilhe esta página</div>
+    <footer><span className="public-mini-brand"><Wifi size={12}/> NFC SMART</span><small>Toque. Conecte. Experimente.</small></footer>
+   </section>
+  </div>
+ </main>
+}
