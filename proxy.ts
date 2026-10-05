@@ -20,24 +20,27 @@ export async function proxy(request: NextRequest) {
   );
 
   const { data } = await supabase.auth.getClaims();
-  const isProtected = request.nextUrl.pathname.startsWith("/dashboard") || request.nextUrl.pathname.startsWith("/admin");
+  const isProtected =
+    request.nextUrl.pathname.startsWith("/dashboard") ||
+    request.nextUrl.pathname.startsWith("/admin");
 
   if (!isProtected) return response;
   if (!data?.claims?.sub) return NextResponse.redirect(new URL("/login", request.url));
 
+  const userId = String(data.claims.sub);
+
   const { data: admin } = await supabase
     .from("platform_admins")
     .select("user_id")
-    .eq("user_id", data.claims.sub)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (admin) return response;
 
-  const email = typeof data.claims.email === "string" ? data.claims.email : "";
   const { data: access } = await supabase
     .from("access_requests")
     .select("status")
-    .eq("email", email.toLowerCase())
+    .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
