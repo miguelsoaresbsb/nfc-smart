@@ -13,6 +13,7 @@ export default function SolicitarAcesso() {
     e.preventDefault();
     setError("");
     setLoading(true);
+
     const form = new FormData(e.currentTarget);
     const name = String(form.get("name") || "").trim();
     const companyName = String(form.get("company_name") || "").trim();
@@ -36,20 +37,20 @@ export default function SolicitarAcesso() {
       return;
     }
 
-    if (data.session && data.user) {
-      const { error: requestError } = await supabase.from("access_requests").insert({
-        name, email, phone: phone || null, company_name: companyName, user_id: data.user.id, status: "pending",
-      });
-      if (requestError) {
-        setError(requestError.message);
-        setLoading(false);
+    if (data.user) {
+      // A database trigger creates the access request atomically when the Auth user is created.
+      // This works both with and without email confirmation and avoids duplicate requests.
+      if (data.session) {
+        window.location.href = "/acesso-pendente";
         return;
       }
-      window.location.href = "/acesso-pendente";
+
+      setSuccess(true);
+      setLoading(false);
       return;
     }
 
-    setSuccess(true);
+    setError("Não foi possível criar sua solicitação. Tente novamente.");
     setLoading(false);
   }
 
@@ -61,7 +62,10 @@ export default function SolicitarAcesso() {
         <h1>Crie seu perfil</h1>
         <p className="lead">Preencha seus dados para solicitar acesso ao NFC Smart.</p>
         {success ? (
-          <div className="form-success">Cadastro iniciado. Verifique seu e-mail para confirmar a conta. Depois da confirmação, sua solicitação ficará pendente de autorização do administrador.</div>
+          <div className="form-success">
+            Solicitação enviada com sucesso. Verifique seu e-mail para confirmar a conta.
+            Depois da confirmação, sua solicitação ficará pendente de autorização do administrador.
+          </div>
         ) : (
           <form className="auth-form" onSubmit={submit}>
             <label>Nome<input name="name" required placeholder="Seu nome" /></label>
@@ -70,7 +74,9 @@ export default function SolicitarAcesso() {
             <label>WhatsApp<input name="phone" placeholder="(00) 00000-0000" /></label>
             <label>Senha<input name="password" required minLength={6} type="password" placeholder="Mínimo de 6 caracteres" /></label>
             {error && <p className="form-error">{error}</p>}
-            <button className="btn dark big" type="submit" disabled={loading}>{loading ? "Enviando..." : "Solicitar acesso"}</button>
+            <button className="btn dark big" type="submit" disabled={loading}>
+              {loading ? "Enviando..." : "Solicitar acesso"}
+            </button>
           </form>
         )}
         <p className="auth-footer"><Link href="/">Voltar</Link> · <Link href="/login">Já tenho acesso</Link></p>
