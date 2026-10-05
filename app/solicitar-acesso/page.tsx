@@ -4,6 +4,17 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 
+const REQUEST_TIMEOUT_MS = 15000;
+
+function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error("A conexão demorou mais que o esperado. Tente novamente.")), ms),
+    ),
+  ]);
+}
+
 export default function SolicitarAcesso() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -11,7 +22,10 @@ export default function SolicitarAcesso() {
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (loading) return;
+
     setError("");
+    setSuccess(false);
     setLoading(true);
 
     const form = new FormData(e.currentTarget);
@@ -21,36 +35,51 @@ export default function SolicitarAcesso() {
     const phone = String(form.get("phone") || "").trim();
     const password = String(form.get("password") || "");
 
-    const supabase = createClient();
-    const { data, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin + "/auth/callback?next=/acesso-pendente",
-        data: { name, company_name: companyName, phone },
-      },
-    });
-
-    if (authError) {
-      setError(authError.message);
+    if (!name || !companyName || !email || password.length < 6) {
+      setError("Preencha os campos obrigatórios e use uma senha com pelo menos 6 caracteres.");
       setLoading(false);
       return;
     }
 
-    if (data.user) {
-      // A database trigger creates the access request atomically when the Auth user is created.
-      // This works both with and without email confirmation and avoids duplicate requests.
-      if (data.session) {
-        window.location.href = "/acesso-pendente";
+    try {
+      const supabase = createClient();
+
+      const { data, error: authError } = await withTimeout(
+        supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.origin + "/auth/callback?next=/acesso-pendente",
+            data: { name, company_name: companyName, phone },
+          },
+        }),
+        REQUEST_TIMEOUT_MS,
+      );
+
+      if (authError) {
+        setError(authError.message || "Não foi possível enviar sua solicitação.");
+        setLoading(false);
         return;
       }
 
-      // The application uses administrator approval as the access gate; email confirmation is not required here.\n      if (!data.session) {\n        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });\n        if (!signInError) {\n          window.location.href = "/acesso-pendente";\n          return;\n        }\n      }\n\n      setSuccess(true);\n      setLoading(false);
-      return;
-    }
+      if (!data.user) {
+        setError("O cadastro não foi criado. Tente novamente.");
+        setLoading(false);
+        return;
+      }
 
-    setError("Não foi possível criar sua solicitação. Tente novamente.");
-    setLoading(false);
+      // A trigger do banco cria a solicitação de acesso quando o usuário é criado.
+      // Não fazemos signIn automático aqui: a autorização do Admin Master é o gate de acesso.
+      setSuccess(true);
+      setLoading(false);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível enviar sua solicitação. Tente novamente.",
+      );
+      setLoading(false);
+    }
   }
 
   return (
@@ -60,16 +89,17 @@ export default function SolicitarAcesso() {
         <p className="eyebrow">SOLICITAÇÃO DE ACESSO</p>
         <h1>Crie seu perfil</h1>
         <p className="lead">Preencha seus dados para solicitar acesso ao NFC Smart.</p>
+
         {success ? (
           <div className="form-success">
-            Solicitação enviada com sucesso. Verifique seu e-mail para confirmar a conta.
-            Depois da confirmação, sua solicitação ficará pendente de autorização do administrador.
+            Solicitação enviada com sucesso. Seu pedido está aguardando autorização do administrador.
+            Você poderá entrar no painel somente depois que o administrador autorizar seu acesso.
           </div>
         ) : (
           <form className="auth-form" onSubmit={submit}>
             <label>Nome<input name="name" required placeholder="Seu nome" /></label>
             <label>Empresa<input name="company_name" required placeholder="Nome da empresa" /></label>
-            <label>E-mail<input name="email" required type="email" placeholder="voce@email.com" /></label>
+            <label>E-mail><input name="email" required type="email" placeholder="voce@email.com" /></label>
             <label>WhatsApp<input name="phone" placeholder="(00) 00000-0000" /></label>
             <label>Senha<input name="password" required minLength={6} type="password" placeholder="Mínimo de 6 caracteres" /></label>
             {error && <p className="form-error">{error}</p>}
@@ -78,7 +108,10 @@ export default function SolicitarAcesso() {
             </button>
           </form>
         )}
-        <p className="auth-footer"><Link href="/">Voltar</Link> · <Link href="/login">Já tenho acesso</Link></p>
+
+        <p className="auth-footer">
+          <Link href="/">Voltar</Link> · <Link href="/login">Já tenho acesso</Link>
+        </p>
       </section>
     </main>
   );
