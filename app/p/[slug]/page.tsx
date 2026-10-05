@@ -1,2 +1,17 @@
 import {notFound} from "next/navigation";
-export default async function PublicPage({params}:{params:Promise<{slug:string}>}){const {slug}=await params;if(!slug)return notFound();return <main className="min-h-screen bg-[#05070a] px-5 py-10"><div className="mx-auto max-w-md"><div className="glass rounded-[32px] p-6 text-center"><div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-white/10 text-3xl">N</div><h1 className="mt-6 text-3xl font-semibold">Sua empresa</h1><p className="mt-2 text-white/50">Conecte-se conosco em um toque.</p><div className="mt-8 space-y-3">{["WhatsApp","Instagram","Google","Website","PIX"].map(x=><button key={x} className="w-full rounded-2xl bg-white/8 p-4 text-sm transition hover:bg-white/12">{x}</button>)}</div><div className="mt-8 border-t border-white/10 pt-5 text-xs text-white/25">NFC Smart • {slug}</div></div></div></main>}
+import {createClient} from "@/lib/supabase-server";
+export default async function PublicPage({params}:{params:Promise<{slug:string}>}){
+ const {slug}=await params; const s=await createClient();
+ const {data:c}=await s.from("companies").select("*").eq("slug",slug).maybeSingle();
+ if(!c)return notFound();
+ const {data:sub}=await s.from("subscriptions").select("status,expires_at").eq("company_id",c.id).maybeSingle();
+ const active=sub?.status==="active"&&(!sub.expires_at||new Date(sub.expires_at)>new Date());
+ if(!active)return <main className="public-page"><div className="public-card"><h1>Página temporariamente indisponível</h1><p>Esta página será reativada quando a assinatura estiver ativa.</p></div></main>;
+ const [{data:actions},{data:qrs},{data:profile}]=await Promise.all([
+  s.from("actions").select("*").eq("company_id",c.id).eq("enabled",true).order("position"),
+  s.from("qr_codes").select("*").eq("company_id",c.id).eq("enabled",true).order("position"),
+  s.from("profiles").select("cover_url").eq("company_id",c.id).maybeSingle()
+ ]);
+ const cover=profile?.cover_url;
+ return <main className="public-page" style={{background:c.background_color||"#f5f5f5"}}><div className="public-wrap">{cover&&<img className="public-cover" src={cover} alt="capa"/>}<section className="public-card">{c.logo_url?<img className="public-avatar" src={c.logo_url} alt={c.name}/>:<div className="public-avatar public-initial">{c.name.slice(0,1)}</div>}<h1>{c.name}</h1>{c.description&&<p className="public-desc">{c.description}</p>}<div className="public-actions">{(actions||[]).map((a:any)=><a className="public-action" style={{background:c.primary_color||"#111",color:c.secondary_color||"#fff"}} href={a.url||"#"} key={a.id}>{a.label}</a>)}</div>{(qrs||[]).map((q:any)=><div className="public-qr" key={q.id}><img src={q.image_url} alt={q.name}/>{q.description&&<span>{q.description}</span>}</div>)}<footer>NFC Smart • toque para conectar</footer></section></div></main>
+}
