@@ -1,14 +1,14 @@
 "use client";
 import {useEffect,useState} from "react";
 import Link from "next/link";
-import {ArrowLeft,ArrowUpRight,Check,ChevronDown,Copy,ExternalLink,ImagePlus,Instagram,MapPin,MessageCircle,Palette,Phone,Plus,QrCode,Save,Settings2,Share2,Star,Trash2,Upload,Wifi,Globe,Menu,WalletCards} from "lucide-react";
+import {ArrowLeft,ArrowUpRight,Check,ChevronDown,Copy,ExternalLink,ImagePlus,Camera,MapPin,MessageCircle,Palette,Phone,Plus,QrCode,Save,Settings2,Share2,Star,Trash2,Upload,Wifi,Globe,Menu,WalletCards} from "lucide-react";
 import {createClient} from "@/lib/supabase-browser";
 
 type Company={id:string;name:string;slug:string;logo_url:string|null;description:string|null;phone:string|null;whatsapp:string|null;instagram:string|null;website:string|null;google_review_url:string|null;pix_key:string|null;address:string|null;primary_color:string;secondary_color:string;background_color:string};
 type QR={id:string;name:string;image_url:string;storage_path:string;description:string|null;position:number;enabled:boolean};
 type Action={id:string;type:string;label:string;url:string|null;position:number;enabled:boolean};
 
-const actionTypes=[["whatsapp","WhatsApp",MessageCircle],["instagram","Instagram",Instagram],["google","Google avaliações",Star],["maps","Localização",MapPin],["website","Site",Globe],["phone","Telefone",Phone],["menu","Cardápio",Menu],["pix","PIX",WalletCards],["custom","Personalizado",ArrowUpRight]];
+const actionTypes=[["whatsapp","WhatsApp",MessageCircle],["instagram","Instagram",Camera],["google","Google avaliações",Star],["maps","Localização",MapPin],["website","Site",Globe],["phone","Telefone",Phone],["menu","Cardápio",Menu],["pix","PIX",WalletCards],["custom","Personalizado",ArrowUpRight]];
 
 export default function Editor(){
  const s=createClient(); const [company,setCompany]=useState<Company|null>(null); const [actions,setActions]=useState<Action[]>([]); const [qrs,setQrs]=useState<QR[]>([]);
