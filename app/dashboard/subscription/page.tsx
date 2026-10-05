@@ -12,7 +12,7 @@ type SubscriptionRow = {
   expires_at: string | null;
 };
 
-const checkoutUrl = process.env.NEXT_PUBLIC_CAKTO_CHECKOUT_URL || "";
+const checkoutUrl = "https://pay.cakto.com.br/396w5rm_1175861";
 
 function statusText(status: SubscriptionRow["status"]) {
   if (status === "active") return "ATIVA";
