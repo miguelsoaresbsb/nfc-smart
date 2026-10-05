@@ -71,6 +71,7 @@ export default function Login() {
       password,
       options: {
         data: { name: name.trim(), phone: phone.trim() },
+        emailRedirectTo: "https://nfc-smart-one.vercel.app/auth/callback?next=/login",
       },
     });
 
