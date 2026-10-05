@@ -1,5 +1,6 @@
 import {notFound} from "next/navigation";
-import {ArrowUpRight,MapPin,MessageCircle,Phone,Share2,Sparkles,Star,Wifi} from "lucide-react";
+import {ArrowUpRight,MapPin,MessageCircle,Phone,Sparkles,Star,Wifi} from "lucide-react";
+import {ActionClickBinder,PageViewTracker,ShareButton} from "./PublicInteractions";
 import {createClient} from "@/lib/supabase-server";
 
 export default async function PublicPage({params}:{params:Promise<{slug:string}>}){
@@ -17,14 +18,14 @@ export default async function PublicPage({params}:{params:Promise<{slug:string}>
  const icon=(type:string)=>type==="whatsapp"?<MessageCircle size={18}/>:type==="phone"?<Phone size={18}/>:type==="google"?<Star size={18}/>:type==="maps"?<MapPin size={18}/>:<ArrowUpRight size={18}/>;
  return <main className="bio-public" style={{"--page-bg":c.background_color||"#f5f5f2","--button":c.primary_color||"#111111","--button-text":c.secondary_color||"#fff"} as React.CSSProperties}>
   <div className="bio-orb bio-orb-one"/><div className="bio-orb bio-orb-two"/>
-  <section className="bio-shell">
+  <section className="bio-shell"><PageViewTracker companyId={c.id}/><ActionClickBinder companyId={c.id}/>
    <div className="bio-cover">{cover?<img src={cover} alt="" />:<div className="bio-cover-art"><span/><span/><span/></div>}<div className="bio-cover-shade"/></div>
    <div className="bio-content">
     <div className="bio-avatar-wrap"><div className="bio-avatar">{c.logo_url?<img src={c.logo_url} alt={c.name}/>:<span>{c.name.slice(0,1).toUpperCase()}</span>}</div></div>
     <div className="bio-identity"><div className="bio-name-row"><h1>{c.name}</h1><span className="bio-check">✓</span></div>{c.description&&<p>{c.description}</p>}{c.address&&<div className="bio-location"><MapPin size={13}/>{c.address}</div>}</div>
-    <div className="bio-actions">{(actions||[]).map((a:any)=><a className="bio-action" href={a.url||"#"} key={a.id}><span className="bio-action-icon">{icon(a.type)}</span><b>{a.label}</b><ArrowUpRight className="bio-action-arrow" size={16}/></a>)}</div>
+    <div className="bio-actions">{(actions||[]).map((a:any)=><a className="bio-action" href={a.url||"#"} data-action-id={a.id} key={a.id}><span className="bio-action-icon">{icon(a.type)}</span><b>{a.label}</b><ArrowUpRight className="bio-action-arrow" size={16}/></a>)}</div>
     {(qrs||[]).map((q:any)=><div className="bio-qr" key={q.id}><div className="bio-qr-head"><span><QrLabel/></span><b>{q.name}</b></div><img src={q.image_url} alt={q.name}/>{q.description&&<p>{q.description}</p>}</div>)}
-    <button className="bio-share" type="button"><Share2 size={15}/> Compartilhar página</button>
+    <ShareButton url={`${process.env.NEXT_PUBLIC_SITE_URL||""}/p/${c.slug}`} />
     <footer className="bio-footer"><span><Wifi size={12}/> NFC SMART</span><small>Toque. Conecte. Experimente.</small></footer>
    </div>
   </section>
