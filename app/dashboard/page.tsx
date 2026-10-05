@@ -35,7 +35,7 @@ export default async function Dashboard() {
 
   const { data: member } = await sb
     .from("company_members")
-    .select("company_id,companies(name,slug)")
+    .select("company_id,companies(id,name,slug)")
     .eq("user_id", user.id)
     .limit(1)
     .maybeSingle();
@@ -83,6 +83,7 @@ export default async function Dashboard() {
           <Link href="/dashboard/editor"><b>✦</b><strong>Editor</strong><small>Fotos e cores</small></Link>
           <Link href="/dashboard/actions"><b>⌁</b><strong>Ações</strong><small>WhatsApp, PIX, Google…</small></Link>
           <Link href="/dashboard/analytics"><b>◌</b><strong>Analytics</strong><small>Visitas e cliques</small></Link>
+          <Link href="/dashboard/nfc"><b>⌁</b><strong>NFC</strong><small>Link para a plaquinha</small></Link>
           <Link href="/dashboard/subscription"><b>∞</b><strong>Assinatura</strong><small>R$80 / ano</small></Link>
         </div>
       </section>
