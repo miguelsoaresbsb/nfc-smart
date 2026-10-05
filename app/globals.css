@@ -91,3 +91,43 @@
 @keyframes elite-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}@keyframes bio-in{from{opacity:0;transform:translateY(20px) scale(.985)}to{opacity:1;transform:none}}@keyframes bio-action{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}@keyframes device-float{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-7px) rotate(.4deg)}}@keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:1050px){.editor-layout{grid-template-columns:1fr}.editor-preview-column{position:relative;top:auto}.editor-preview-column .device{margin:20px auto}.editor-panel-grid{grid-template-columns:1fr}.editor-title-row{align-items:start;flex-direction:column}.save-state{align-self:flex-start}.color-editor-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:680px){.editor-header{height:66px;padding:0 15px;grid-template-columns:auto 1fr auto}.editor-brand{justify-self:center}.editor-brand small{display:none}.editor-header-actions .ghost-button{display:none}.editor-layout{padding:27px 14px 50px;gap:24px}.editor-title-row h1{font-size:31px}.editor-tabs{overflow:auto}.editor-tab{white-space:nowrap}.editor-panel{padding:18px;border-radius:18px}.field-grid,.color-editor-grid,.theme-presets{grid-template-columns:1fr}.elite-field.wide{grid-column:auto}.action-editor{grid-template-columns:34px minmax(0,1fr) 32px}.action-editor-icon{width:34px;height:34px}.device{width:330px;height:670px}.bio-public{padding:0 0 30px}.bio-shell{border-radius:0;border-left:0;border-right:0;box-shadow:none}.bio-content{padding:0 20px 23px}.bio-cover{height:180px}.bio-avatar{width:94px;height:94px}.bio-name-row h1{font-size:25px}}
+
+/* NFC SMART ELITE CARDS v3 */
+.dash-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.dash-card{min-height:205px;padding:24px;border-radius:24px;background:linear-gradient(145deg,#fff 0%,#fafaf7 100%);border:1px solid #deded8;box-shadow:0 10px 30px rgba(0,0,0,.045);isolation:isolate}
+.dash-card:before{content:"";position:absolute;width:170px;height:170px;right:-55px;top:-65px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(210,255,85,.6),rgba(210,255,85,0) 68%);opacity:.65;transition:.35s;z-index:-1}
+.dash-card:after{width:85px;height:85px;right:-25px;bottom:-35px;background:#f0f0eb}
+.dash-card:nth-child(2):before{background:radial-gradient(circle,rgba(175,210,255,.7),transparent 68%)}
+.dash-card:nth-child(3):before{background:radial-gradient(circle,rgba(255,210,155,.72),transparent 68%)}
+.dash-card:nth-child(4):before{background:radial-gradient(circle,rgba(190,230,210,.72),transparent 68%)}
+.dash-card:nth-child(5):before{background:radial-gradient(circle,rgba(215,190,255,.68),transparent 68%)}
+.dash-card:nth-child(6):before{background:radial-gradient(circle,rgba(255,190,205,.68),transparent 68%)}
+.dash-card:hover:before{transform:scale(1.25);opacity:1}
+.dash-card:hover{transform:translateY(-7px) scale(1.012);box-shadow:0 28px 65px rgba(0,0,0,.11)}
+.dash-card-icon{width:48px;height:48px;border-radius:15px;background:#111;color:#dfff72;box-shadow:0 10px 22px rgba(0,0,0,.12);transition:.3s}
+.dash-card:nth-child(2) .dash-card-icon{background:#eaf2ff;color:#3765a8}
+.dash-card:nth-child(3) .dash-card-icon{background:#fff0df;color:#a65c16}
+.dash-card:nth-child(4) .dash-card-icon{background:#e8f7ee;color:#26734b}
+.dash-card:nth-child(5) .dash-card-icon{background:#f1eaff;color:#7046a8}
+.dash-card:nth-child(6) .dash-card-icon{background:#ffe9ee;color:#a83e59}
+.dash-card:hover .dash-card-icon{transform:rotate(-5deg) scale(1.08)}
+.dash-card h3{font-size:18px;margin:18px 0 7px}.dash-card p{font-size:12.5px;line-height:1.6;color:#777}
+.dash-card>svg{background:#fff;border:1px solid #e5e5df;border-radius:10px;padding:7px;width:30px;height:30px;right:18px;bottom:18px;color:#555;transition:.25s}
+.dash-card:hover>svg{transform:translateX(3px);background:#111;color:#fff;border-color:#111}
+.dash-card.featured{background:linear-gradient(145deg,#111,#242424);box-shadow:0 18px 45px rgba(0,0,0,.18)}
+.dash-card.featured .dash-card-icon{background:#dfff72;color:#111}
+.dash-card.featured p{color:#aaa}
+.subpage{position:relative;overflow:hidden}
+.subpage:before{content:"";position:absolute;width:480px;height:480px;right:-240px;top:-180px;border-radius:50%;background:radial-gradient(circle,rgba(211,255,91,.32),transparent 68%);pointer-events:none}
+.subpage:after{content:"";position:absolute;width:280px;height:280px;left:-170px;bottom:30px;border-radius:50%;background:radial-gradient(circle,rgba(190,215,255,.25),transparent 68%);pointer-events:none}
+.subpage>*{position:relative;z-index:1}
+.subpage-hero,.upload-showcase,.url-showcase,.subscription-card,.analytics-note{transition:.3s}
+.subpage-hero:hover,.upload-showcase:hover,.url-showcase:hover,.subscription-card:hover{transform:translateY(-4px);box-shadow:0 28px 65px rgba(0,0,0,.1)}
+.analytics-grid .metric-card{min-height:190px;position:relative;overflow:hidden;box-shadow:0 12px 35px rgba(0,0,0,.055);transition:.28s}
+.analytics-grid .metric-card:after{content:"";position:absolute;width:130px;height:130px;border-radius:50%;right:-50px;bottom:-60px;background:#eef4d8}
+.analytics-grid .metric-card:hover{transform:translateY(-6px);box-shadow:0 25px 55px rgba(0,0,0,.1)}
+.metric-icon{box-shadow:0 9px 22px rgba(0,0,0,.12)}
+.url-showcase{position:relative;overflow:hidden}
+.url-icon,.upload-icon,.plan-icon{box-shadow:0 12px 28px rgba(0,0,0,.15);animation:device-float 5s ease-in-out infinite}
+@media(max-width:900px){.dash-grid{grid-template-columns:repeat(2,minmax(0,1fr));padding:0 18px}.dash-footer{margin:0 18px}}
+@media(max-width:620px){.dash-grid{grid-template-columns:1fr;padding:0 14px}.dash-card{min-height:175px}.dash-status{margin-left:14px;margin-right:14px;flex-direction:column;align-items:flex-start}.url-chip{width:100%;flex-wrap:wrap}.subpage{padding:55px 16px}.subpage h1{font-size:42px}}
