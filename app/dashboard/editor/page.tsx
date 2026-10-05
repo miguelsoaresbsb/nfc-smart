@@ -20,19 +20,30 @@ export default function Editor(){
   if(admin){const {data:c}=await s.from("companies").select("*").order("name").limit(1).maybeSingle();companyId=c?.id||null}
   else {const {data:m}=await s.from("company_members").select("company_id").eq("user_id",user.user.id).limit(1).maybeSingle();companyId=m?.company_id||null}
   if(!companyId){setLoading(false);return}
-  const [{data:c},{data:a},{data:q}]=await Promise.all([
+  const [{data:c},{data:a},{data:q},{data:p}]=await Promise.all([
    s.from("companies").select("*").eq("id",companyId).single(),
    s.from("actions").select("*").eq("company_id",companyId).order("position"),
-   s.from("qr_codes").select("*").eq("company_id",companyId).order("position")
+   s.from("qr_codes").select("*").eq("company_id",companyId).order("position"),
+   s.from("profiles").select("cover_url").eq("company_id",companyId).limit(1).maybeSingle()
   ]);
-  setCompany(c);setForm(c||{});setActions(a||[]);setQrs(q||[]);setLoading(false);
+  const hydrated={...(c||{}),cover_url:p?.cover_url||null};
+  setCompany(c);setForm(hydrated);setActions(a||[]);setQrs(q||[]);setLoading(false);
  }
  useEffect(()=>{load()},[]);
  async function save(){
   if(!company)return;setSaving(true);setMsg("");
-  const payload={name:form.name,description:form.description,phone:form.phone,whatsapp:form.whatsapp,instagram:form.instagram,website:form.website,google_review_url:form.google_review_url,address:form.address,primary_color:form.primary_color,secondary_color:form.secondary_color,background_color:form.background_color,logo_url:form.logo_url,updated_at:new Date().toISOString()};
+  const payload={name:form.name,description:form.description,phone:form.phone,whatsapp:form.whatsapp,instagram:form.instagram,website:form.website,google_review_url:form.google_review_url,pix_key:form.pix_key||null,address:form.address,primary_color:form.primary_color||"#111111",secondary_color:form.secondary_color||"#ffffff",background_color:form.background_color||"#f5f5f2",logo_url:form.logo_url||null,updated_at:new Date().toISOString()};
   const {error}=await s.from("companies").update(payload).eq("id",company.id);
-  if(error)setMsg("Não foi possível salvar: "+error.message);else{setCompany({...company,...payload});setMsg("Alterações salvas com sucesso");}
+  if(error){setMsg("Não foi possível salvar: "+error.message);}else{
+   if(form.cover_url){
+     const {data:p}=await s.from("profiles").select("id").eq("company_id",company.id).limit(1).maybeSingle();
+     const profileResult=p
+       ? await s.from("profiles").update({cover_url:form.cover_url,updated_at:new Date().toISOString()}).eq("id",p.id)
+       : await s.from("profiles").insert({company_id:company.id,cover_url:form.cover_url});
+     if(profileResult.error){setMsg("Dados salvos, mas a capa não pôde ser registrada: "+profileResult.error.message);setSaving(false);return;}
+   }
+   setCompany({...company,...payload});setMsg("✓ Alterações salvas permanentemente");
+ }
   setSaving(false);
  }
  async function upload(kind:"logo"|"cover"){
@@ -42,11 +53,12 @@ export default function Editor(){
    const {error}=await s.storage.from("company-assets").upload(path,file,{upsert:false,contentType:file.type});
    if(error){setMsg("Upload falhou: "+error.message);return}
    const {data}=s.storage.from("company-assets").getPublicUrl(path);const url=data.publicUrl;
-   if(kind==="logo"){setForm((x:any)=>({...x,logo_url:url}));const {error:e}=await s.from("companies").update({logo_url:url}).eq("id",company.id);if(e){setMsg(e.message);return}}
+   if(kind==="logo"){setForm((x:any)=>({...x,logo_url:url}));const {error:e}=await s.from("companies").update({logo_url:url,updated_at:new Date().toISOString()}).eq("id",company.id);if(e){setMsg("Foto enviada, mas não foi salva: "+e.message);return}}
    else {
     const {data:existing}=await s.from("profiles").select("id").eq("company_id",company.id).limit(1).maybeSingle();
     const result=existing?await s.from("profiles").update({cover_url:url}).eq("id",existing.id):await s.from("profiles").insert({company_id:company.id,cover_url:url});
     if(result.error){setMsg("Capa enviada, mas não foi possível salvar no perfil: "+result.error.message);return}
+    setForm((x:any)=>({...x,cover_url:url}));
    }
    setMsg(kind==="logo"?"Foto de perfil atualizada":"Capa atualizada");load();
   };input.click();
@@ -66,7 +78,7 @@ export default function Editor(){
     <div className="editor-title-row"><div><span className="eyebrow-line"><span/> PERSONALIZAÇÃO</span><h1>Construa uma página que <em>pareça sua.</em></h1><p>Edite, salve e veja o resultado no celular ao lado.</p></div><div className="save-state">{msg?<><Check size={14}/>{msg}</>:<><span className="live-dot"/> Salvamento manual</>}</div></div>
     <div className="editor-tabs">{[["visual","Identidade",Palette],["ações","Ações",Settings2],["qr","QR Codes",QrCode],["aparência","Cores",Palette]].map(([id,label,Icon]:any)=><button key={id} className={tab===id?"editor-tab active":"editor-tab"} onClick={()=>setTab(id)}><Icon size={16}/>{label}</button>)}</div>
     {tab==="visual"&&<div className="editor-panel-grid">
-      <Panel title="Perfil público" text="Essas informações aparecem no topo da sua página."><div className="media-row"><div className="media-preview round">{form.logo_url?<img src={form.logo_url} alt="Logo"/>:<span>{(form.name||"N").slice(0,1)}</span>}</div><div><b>Foto de perfil</b><small>PNG, JPG ou WEBP · até 6 MB</small><button className="outline-button" onClick={()=>upload("logo")}><Upload size={14}/> Trocar foto</button></div></div><div className="field-grid"><Field label="Nome da empresa" value={form.name||""} onChange={(v:string)=>setForm({...form,name:v})}/><Field label="Descrição" value={form.description||""} onChange={(v:string)=>setForm({...form,description:v})}/><Field label="Telefone" value={form.phone||""} onChange={(v:string)=>setForm({...form,phone:v})}/><Field label="WhatsApp" value={form.whatsapp||""} onChange={(v:string)=>setForm({...form,whatsapp:v})}/><Field label="Instagram" value={form.instagram||""} onChange={(v:string)=>setForm({...form,instagram:v})}/><Field label="Endereço" value={form.address||""} onChange={(v:string)=>setForm({...form,address:v})}/><Field wide label="Site" value={form.website||""} onChange={(v:string)=>setForm({...form,website:v})}/><Field wide label="Google avaliações" value={form.google_review_url||""} onChange={(v:string)=>setForm({...form,google_review_url:v})}/></div></Panel>
+      <Panel title="Perfil público" text="Essas informações aparecem no topo da sua página."><div className="media-row"><div className="media-preview round">{form.logo_url?<img src={form.logo_url} alt="Logo"/>:<span>{(form.name||"N").slice(0,1)}</span>}</div><div><b>Foto de perfil</b><small>PNG, JPG ou WEBP · até 6 MB</small><button className="outline-button" onClick={()=>upload("logo")}><Upload size={14}/> Trocar foto</button></div></div><div className="field-grid"><Field label="Nome da empresa" value={form.name||""} onChange={(v:string)=>setForm({...form,name:v})}/><Field label="Descrição" value={form.description||""} onChange={(v:string)=>setForm({...form,description:v})}/><Field label="Telefone" value={form.phone||""} onChange={(v:string)=>setForm({...form,phone:v})}/><Field label="WhatsApp" value={form.whatsapp||""} onChange={(v:string)=>setForm({...form,whatsapp:v})}/><Field label="Instagram" value={form.instagram||""} onChange={(v:string)=>setForm({...form,instagram:v})}/><Field label="Chave PIX" value={form.pix_key||""} onChange={(v:string)=>setForm({...form,pix_key:v})}/><Field label="Endereço" value={form.address||""} onChange={(v:string)=>setForm({...form,address:v})}/><Field wide label="Site" value={form.website||""} onChange={(v:string)=>setForm({...form,website:v})}/><Field wide label="Google avaliações" value={form.google_review_url||""} onChange={(v:string)=>setForm({...form,google_review_url:v})}/></div></Panel>
       <Panel title="Capa / fundo" text="Uma imagem horizontal cria a sensação de perfil e deixa a página muito mais visual."><div className="cover-preview">{form.cover_url?<img src={form.cover_url} alt="Capa"/>:<div><ImagePlus size={24}/><span>Nenhuma capa configurada</span></div>}</div><button className="outline-button full" onClick={()=>upload("cover")}><ImagePlus size={15}/> {form.cover_url?"Trocar capa":"Adicionar foto de capa"}</button></Panel>
     </div>}
     {tab==="ações"&&<Panel title="Ações da página" text="Você decide quais botões aparecem e o que cada um faz."><div className="action-list">{actions.map((a)=><ActionEditor key={a.id} a={a} onChange={p=>updateAction(a,p)} onDelete={()=>removeAction(a.id)}/>)}</div><button className="add-action" onClick={addAction}><Plus size={17}/> Adicionar nova ação</button></Panel>}
