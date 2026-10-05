@@ -62,3 +62,18 @@
 .public-action:hover{transform:translateY(-3px)!important;box-shadow:0 14px 25px #1112!important}.public-qr{max-width:280px!important;width:100%;border-radius:18px!important}.public-share{cursor:pointer}.public-card footer{margin-top:24px!important}
 @keyframes editor-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:800px){.editor-grid{grid-template-columns:1fr!important;margin-top:18px!important;padding:0 14px!important}.app .phone{position:relative;top:auto;margin:4px auto 0;width:min(100%,340px)}.app .phone-screen{max-height:none}.app .action-edit{grid-template-columns:1fr}.app .color-grid{grid-template-columns:1fr}.app .upload-row{grid-template-columns:1fr}.app .toplinks a{padding:9px;font-size:11px}.public-page{padding:16px 12px 40px!important}}
+
+.public-wrap.bio-classic{max-width:430px!important;padding-top:22px}
+.public-wrap.bio-classic .public-card{border:0!important;border-radius:30px!important;padding:28px 25px 26px!important;background:rgba(255,255,255,.96)!important}
+.public-wrap.bio-classic .public-profile-head{padding-top:0}
+.public-wrap.bio-classic .public-avatar{margin:0 auto 16px!important;width:112px!important;height:112px!important;min-width:112px!important;max-width:112px!important}
+.public-profile-head{text-align:center}
+.public-name{margin:0!important;color:#151515;font-size:24px;font-weight:850;line-height:1.15;letter-spacing:-.05em;overflow-wrap:anywhere}
+.public-profile-head .public-desc{margin:10px auto 0!important}
+.public-wrap.has-cover .public-card{padding-top:0!important}
+.public-wrap.has-cover .public-profile-head{padding-top:0}
+.public-action strong{font-size:13px;font-weight:780;text-align:left}
+.public-action-arrow{justify-self:end}
+.public-qr b{display:block;font-size:12px;color:#333;margin-top:8px}
+.public-share{transition:color .2s}.public-share:hover{color:#111}
+@media(max-width:600px){.public-wrap.bio-classic{padding-top:8px}.public-wrap.bio-classic .public-card{padding:26px 20px 23px!important}.public-name{font-size:22px}}
