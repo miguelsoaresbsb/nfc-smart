@@ -9,7 +9,8 @@ export default function SolicitarAcesso() {
         <h1>Crie seu perfil</h1>
         <p className="lead">Preencha seus dados para solicitar acesso ao NFC Smart.</p>
         <form className="auth-form" action="/api/access-request" method="post">
-          <label>Nome<input name="name" required placeholder="Seu nome" /></label>\n          <label>Empresa<input name="company_name" required placeholder="Nome da empresa" /></label>
+          <label>Nome<input name="name" required placeholder="Seu nome" /></label>
+          <label>Empresa<input name="company_name" required placeholder="Nome da empresa" /></label>\n          <label>Empresa<input name="company_name" required placeholder="Nome da empresa" /></label>
           <label>E-mail<input name="email" required type="email" placeholder="voce@email.com" /></label>
           <label>WhatsApp<input name="phone" placeholder="(00) 00000-0000" /></label>
           <label>Senha<input name="password" required minLength={6} type="password" placeholder="Mínimo de 6 caracteres" /></label>
