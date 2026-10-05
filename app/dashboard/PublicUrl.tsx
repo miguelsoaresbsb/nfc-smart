@@ -2,14 +2,19 @@
 
 import { useState } from "react";
 
-export default function PublicUrl({ slug }: { slug: string }) {
+const PUBLIC_BASE_URL =
+  process.env.NEXT_PUBLIC_APP_URL || "https://nfc-smart-one.vercel.app";
+
+export default function PublicUrl({ slug }: { slug?: string | null }) {
   const [copied, setCopied] = useState(false);
 
-  const url = typeof window !== "undefined"
-    ? window.location.origin + "/p/" + slug
-    : "/p/" + slug;
+  const validSlug = Boolean(slug?.trim());
+  const url = validSlug
+    ? PUBLIC_BASE_URL.replace(/\/$/, "") + "/p/" + encodeURIComponent(slug!.trim())
+    : "";
 
   async function copy() {
+    if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -23,14 +28,22 @@ export default function PublicUrl({ slug }: { slug: string }) {
     <div className="public-url-card">
       <div>
         <p className="eyebrow">LINK DA PÁGINA PÚBLICA</p>
-        <strong>Use este endereço na sua plaquinha NFC</strong>
-        <div className="public-url">{url}</div>
-        <small>O cliente abre este link diretamente, sem login.</small>
+        <strong>Este é o endereço que deve ser gravado na sua plaquinha NFC</strong>
+        {validSlug ? (
+          <>
+            <div className="public-url">{url}</div>
+            <small>O cliente abre este link diretamente, sem login. Use sempre este endereço oficial, não um link de preview.</small>
+          </>
+        ) : (
+          <small>O endereço público ainda não foi configurado para esta empresa.</small>
+        )}
       </div>
-      <div className="public-url-actions">
-        <a className="btn ghost" href={url} target="_blank" rel="noreferrer">Abrir página</a>
-        <button className="btn dark" onClick={copy}>{copied ? "Copiado ✓" : "Copiar link"}</button>
-      </div>
+      {validSlug && (
+        <div className="public-url-actions">
+          <a className="btn ghost" href={url} target="_blank" rel="noreferrer">Abrir página</a>
+          <button className="btn dark" onClick={copy}>{copied ? "Copiado ✓" : "Copiar link"}</button>
+        </div>
+      )}
     </div>
   );
 }
