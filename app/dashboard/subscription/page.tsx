@@ -120,9 +120,6 @@ export default function Subscription() {
             </div>
           )}
 
-          <Link href="/dashboard/editor" className="premium-btn secondary-action">
-            Personalizar minha página <ArrowRight size={15} />
-          </Link>
         </div>
       </section>
     </main>
