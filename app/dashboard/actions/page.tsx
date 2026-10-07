@@ -9,7 +9,7 @@ const types=[["whatsapp","WhatsApp","wa"],["instagram","Instagram","ig"],["googl
 export default function Actions(){
   const sb=createClient(),router=useRouter();
   const [id,setId]=useState(""),[items,setItems]=useState<any[]>([]),[qrCodes,setQrCodes]=useState<any[]>([]);
-  const [f,setF]=useState({type:"whatsapp",label:"WhatsApp",url:"",pixKeyType:"random",pixKey:"",pixReceiver:"",pixAmount:"",pixDescription:"",pixCopyPaste:"",pixQrCodeId:"",wifiSsid:"",wifiPassword:"",wifiSecurity:"WPA",wifiHidden:false});
+  const [f,setF]=useState({type:"whatsapp",label:"WhatsApp",url:"",pixKeyType:"random",pixKey:"",pixReceiver:"",pixAmount:"",pixDescription:"",pixCopyPaste:"",pixQrCodeId:"",wifiSsid:"",wifiPassword:"",wifiSecurity:"WPA",wifiHidden:false,wifiQrCodeId:""});
   async function load(cid:string){
     const {data}=await sb.from("actions").select("*").eq("company_id",cid).order("position");
     setItems(data||[]);
@@ -21,7 +21,7 @@ export default function Actions(){
     e.preventDefault();
     const t=types.find(x=>x[0]===f.type);
     const payload:any={company_id:id,type:f.type,label:f.label||t?.[1],icon:t?.[2]||"link",position:items.length,enabled:true,url:f.type==="pix"?"#pix":f.type==="wifi"?"#wifi":f.url};
-    if(f.type==="wifi"){payload.wifi_ssid=f.wifiSsid.trim();payload.wifi_password=f.wifiPassword||null;payload.wifi_security=f.wifiSecurity;payload.wifi_hidden=f.wifiHidden;}
+    if(f.type==="wifi"){payload.wifi_ssid=f.wifiSsid.trim();payload.wifi_password=f.wifiPassword||null;payload.wifi_security=f.wifiSecurity;payload.wifi_hidden=f.wifiHidden;payload.wifi_qr_code_id=f.wifiQrCodeId||null;}
     if(f.type==="pix"){
       if(!f.pixKey && !f.pixCopyPaste) return;
       payload.pix_key=f.pixKey||null;
@@ -34,7 +34,7 @@ export default function Actions(){
     }
     const {error}=await sb.from("actions").insert(payload);
     if(error){alert(error.message);return}
-    setF({type:"whatsapp",label:"WhatsApp",url:"",pixKeyType:"random",pixKey:"",pixReceiver:"",pixAmount:"",pixDescription:"",pixCopyPaste:"",pixQrCodeId:"",wifiSsid:"",wifiPassword:"",wifiSecurity:"WPA",wifiHidden:false});
+    setF({type:"whatsapp",label:"WhatsApp",url:"",pixKeyType:"random",pixKey:"",pixReceiver:"",pixAmount:"",pixDescription:"",pixCopyPaste:"",pixQrCodeId:"",wifiSsid:"",wifiPassword:"",wifiSecurity:"WPA",wifiHidden:false,wifiQrCodeId:""});
     load(id);
   }
   async function remove(x:string){await sb.from("actions").delete().eq("id",x);load(id)}
@@ -43,7 +43,7 @@ export default function Actions(){
     <form className="action-form" onSubmit={add}>
       <select value={f.type} onChange={e=>setF({...f,type:e.target.value})}>{types.map(t=><option key={t[0]} value={t[0]}>{t[1]}</option>)}</select>
       <input placeholder="Nome" value={f.label} onChange={e=>setF({...f,label:e.target.value})}/>
-      {f.type==="wifi" ? <div className="pix-action-form"><input placeholder="Nome da rede (SSID)" value={f.wifiSsid} onChange={e=>setF({...f,wifiSsid:e.target.value})} required/><input type="text" placeholder="Senha do Wi-Fi" value={f.wifiPassword} onChange={e=>setF({...f,wifiPassword:e.target.value})}/><select value={f.wifiSecurity} onChange={e=>setF({...f,wifiSecurity:e.target.value})}><option value="WPA">WPA / WPA2 / WPA3</option><option value="WEP">WEP</option><option value="nopass">Sem senha</option></select><label className="checkline"><input type="checkbox" checked={f.wifiHidden} onChange={e=>setF({...f,wifiHidden:e.target.checked})}/> Rede oculta</label><small className="muted">O cliente verá os dados da rede e poderá copiar a configuração Wi-Fi. O NFC SMART não gera QR Code.</small></div> : f.type!=="pix" ? <input placeholder="URL ou destino" value={f.url} onChange={e=>setF({...f,url:e.target.value})} required/> :
+      {f.type==="wifi" ? <div className="pix-action-form"><input placeholder="Nome da rede (SSID)" value={f.wifiSsid} onChange={e=>setF({...f,wifiSsid:e.target.value})} required/><input type="text" placeholder="Senha do Wi-Fi" value={f.wifiPassword} onChange={e=>setF({...f,wifiPassword:e.target.value})}/><select value={f.wifiSecurity} onChange={e=>setF({...f,wifiSecurity:e.target.value})}><option value="WPA">WPA / WPA2 / WPA3</option><option value="WEP">WEP</option><option value="nopass">Sem senha</option></select><label className="checkline"><input type="checkbox" checked={f.wifiHidden} onChange={e=>setF({...f,wifiHidden:e.target.checked})}/> Rede oculta</label><select value={f.wifiQrCodeId} onChange={e=>setF({...f,wifiQrCodeId:e.target.value})}><option value="">Sem QR Code Wi-Fi</option>{qrCodes.map(q=><option key={q.id} value={q.id}>{q.name}</option>)}</select><small className="muted">Envie o QR Code em <b>QR Codes</b> e selecione aqui. O NFC SMART não gera QR Code.</small></div> : f.type!=="pix" ? <input placeholder="URL ou destino" value={f.url} onChange={e=>setF({...f,url:e.target.value})} required/> :
       <div className="pix-action-form">
         <select value={f.pixKeyType} onChange={e=>setF({...f,pixKeyType:e.target.value})}><option value="random">Chave aleatória</option><option value="cpf">CPF</option><option value="cnpj">CNPJ</option><option value="phone">Telefone</option><option value="email">E-mail</option></select>
         <input placeholder="Chave PIX" value={f.pixKey} onChange={e=>setF({...f,pixKey:e.target.value})}/>
