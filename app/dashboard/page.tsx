@@ -82,6 +82,7 @@ export default async function Dashboard() {
         <div className="dashgrid">
           <Link href="/dashboard/editor"><b>✦</b><strong>Editor</strong><small>Fotos e cores</small></Link>
           <Link href="/dashboard/actions"><b>⌁</b><strong>Ações</strong><small>WhatsApp, PIX, Google…</small></Link>
+          <Link href="/dashboard/qr-codes"><b>▦</b><strong>QR Codes</strong><small>Envie e gerencie seus QR Codes</small></Link>
           <Link href="/dashboard/analytics"><b>◌</b><strong>Analytics</strong><small>Visitas e cliques</small></Link>
           <Link href="/dashboard/nfc"><b>⌁</b><strong>NFC</strong><small>Link para a plaquinha</small></Link>
           <Link href="/dashboard/subscription"><b>∞</b><strong>Assinatura</strong><small>R$80 / ano</small></Link>
