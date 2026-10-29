@@ -160,7 +160,7 @@ async function processOrder(
         payload: safeOrderData(data),
         processed_at: new Date().toISOString(),
       },
-      { onConflict: "provider,external_event_id", ignoreDuplicates: true },
+      { onConflict: "provider,external_event_id" },
     );
 
   if (eventError) throw eventError;
