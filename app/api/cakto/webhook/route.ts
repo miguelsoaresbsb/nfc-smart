@@ -47,7 +47,7 @@ function safeOrderData(data: CaktoOrder | Record<string, unknown>) {
 }
 
 async function processOrder(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   event: string,
   data: CaktoOrder | Record<string, unknown>,
   rawBody: string,
@@ -197,7 +197,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 401 });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseSecretKey, {
+  const supabase: any = createClient(supabaseUrl, supabaseSecretKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
