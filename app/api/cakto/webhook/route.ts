@@ -61,6 +61,18 @@ async function processOrder(
   const customerId = order.customer?.id == null ? null : String(order.customer.id);
   const subscriptionId = order.subscription?.id == null ? null : String(order.subscription.id);
 
+  const externalEventId = `${event}:${orderId}`;
+  const { data: previousEvent, error: previousEventError } = await supabase
+    .from("webhook_events")
+    .select("processed_at")
+    .eq("provider", "cakto")
+    .eq("external_event_id", externalEventId)
+    .maybeSingle();
+
+  if (previousEventError) throw previousEventError;
+  // Prevent duplicate deliveries from extending an annual subscription twice.
+  if (previousEvent?.processed_at) return;
+
   const activates = event === "purchase_approved" || event === "subscription_renewed";
   const deactivates = event === "refund" || event === "chargeback" || event === "subscription_canceled";
 
@@ -143,7 +155,7 @@ async function processOrder(
     .upsert(
       {
         provider: "cakto",
-        external_event_id: `${event}:${orderId}`,
+        external_event_id: externalEventId,
         event_type: event,
         payload: safeOrderData(data),
         processed_at: new Date().toISOString(),
