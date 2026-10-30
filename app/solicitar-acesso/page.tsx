@@ -83,8 +83,8 @@ export default function SolicitarAcesso() {
   }
 
   return (
-    <main className="auth-shell">
-      <section className="auth-card">
+    <main className="premium-shell signup-premium"><header className="premium-nav"><Link href="/" className="brand"><span className="brand-mark">N</span><span>NFC<span>SMART</span></span></Link><Link href="/login" className="premium-btn">Já tenho acesso</Link></header><section className="signup-premium-wrap">
+      <section className="auth-card signup-premium-card">
         <div className="auth-brand">NFC<span>SMART</span></div>
         <p className="eyebrow">SOLICITAÇÃO DE ACESSO</p>
         <h1>Crie seu perfil</h1>
@@ -112,7 +112,7 @@ export default function SolicitarAcesso() {
         <p className="auth-footer">
           <Link href="/">Voltar</Link> · <Link href="/login">Já tenho acesso</Link>
         </p>
-      </section>
+      </section></section>
     </main>
   );
 }

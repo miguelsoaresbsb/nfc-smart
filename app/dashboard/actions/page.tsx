@@ -39,7 +39,7 @@ export default function Actions(){
   }
   async function remove(x:string){await sb.from("actions").delete().eq("id",x);load(id)}
   async function toggle(a:any){await sb.from("actions").update({enabled:!a.enabled}).eq("id",a.id);load(id)}
-  return <main className="dash"><header><button onClick={()=>router.back()}>← Voltar</button><b className="logo">NFC<span>SMART</span></b></header><section className="panel wide"><p className="eyebrow">AÇÕES</p><h1>Crie seus próprios quadrados.</h1><p className="muted">Começa vazio. Você escolhe o que aparece.</p>
+  return <main className="premium-shell actions-premium"><header className="premium-nav"><button className="premium-btn" onClick={()=>router.back()}>← Voltar</button><b className="brand"><span className="brand-mark">N</span><span>NFC<span>SMART</span></span></b><span className="section-kicker">EDITOR DE AÇÕES</span></header><section className="subpage actions-content"><div className="section-kicker"><span className="live-dot"/> PERSONALIZE SUA PÁGINA</div><div className="hub-title"><div><h1>Conexões rápidas. <span>Do seu jeito.</span></h1><p>Adicione os atalhos que seus clientes precisam para entrar em contato, pagar, encontrar sua empresa ou se conectar.</p></div></div><div className="actions-workspace"><div className="actions-builder"><p className="eyebrow">NOVA AÇÃO</p><h2>Adicionar um botão</h2>
     <form className="action-form" onSubmit={add}>
       <select value={f.type} onChange={e=>setF({...f,type:e.target.value})}>{types.map(t=><option key={t[0]} value={t[0]}>{t[1]}</option>)}</select>
       <input placeholder="Nome" value={f.label} onChange={e=>setF({...f,label:e.target.value})}/>
@@ -55,7 +55,5 @@ export default function Actions(){
         <small className="muted">Use um QR Code que você já enviou ao NFC SMART. O sistema não gera QR.</small>
       </div>}
       <button className="btn dark">Adicionar</button>
-    </form>
-    <div className="action-list">{items.map(a=><div className={"action-item "+(!a.enabled?"off":"")} key={a.id}><b>{a.icon}</b><div><strong>{a.label}</strong><small>{a.type==="pix" ? (a.pix_key ? "PIX · "+a.pix_key : "PIX · Copia e Cola") : a.type==="wifi" ? "Wi-Fi · "+(a.wifi_ssid||"Rede") : a.url}</small></div><button onClick={()=>toggle(a)}>{a.enabled?"Ativo":"Inativo"}</button><button onClick={()=>remove(a.id)}>Excluir</button></div>)}</div>
-  </section></main>
+    </form></div><div className="actions-existing"><div className="actions-existing-heading"><div><p className="eyebrow">SEUS BOTÕES</p><h2>Organize suas conexões</h2></div><span>{items.length} itens</span></div><div className="action-list">{items.map(a=><div className={"action-item "+(!a.enabled?"off":"")} key={a.id}><b>{a.icon}</b><div><strong>{a.label}</strong><small>{a.type==="pix" ? (a.pix_key ? "PIX · "+a.pix_key : "PIX · Copia e Cola") : a.type==="wifi" ? "Wi-Fi · "+(a.wifi_ssid||"Rede") : a.url}</small></div><button onClick={()=>toggle(a)}>{a.enabled?"Ativo":"Inativo"}</button><button onClick={()=>remove(a.id)}>Excluir</button></div>)}</div></div></div></section></main>
 }

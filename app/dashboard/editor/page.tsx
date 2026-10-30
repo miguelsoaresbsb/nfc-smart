@@ -1,19 +1,213 @@
 "use client";
-import {useEffect,useState} from "react";
-import {useRouter} from "next/navigation";
-import {createClient} from "@/lib/supabase-browser";
-export default function Editor(){
- const sb=createClient(),router=useRouter();
- const [id,setId]=useState(""),[f,setF]=useState({name:"",description:"",bg:"#f6f6f3",primary:"#111111",text:"#111111",secondary:"#777777",buttonText:"#ffffff",logo:"",cover:"",phone:"",whatsapp:"",phoneEnabled:true,whatsappEnabled:true}),[msg,setMsg]=useState("");
- useEffect(()=>{(async()=>{const {data:{user}}=await sb.auth.getUser();if(!user)return router.push("/login");const {data:m}=await sb.from("company_members").select("company_id").eq("user_id",user.id).maybeSingle();if(!m)return router.push("/acesso-pendente");setId(m.company_id);const {data:c}=await sb.from("companies").select("*").eq("id",m.company_id).single();if(!c)return;setF({name:c.name,description:c.description||"",bg:c.background_color||"#f6f6f3",primary:c.primary_color||"#111111",text:c.text_color||"#111111",secondary:c.secondary_text_color||"#777777",buttonText:c.button_text_color||"#ffffff",logo:c.logo_url||"",cover:c.cover_url||"",phone:c.phone||"",whatsapp:c.whatsapp||"",phoneEnabled:c.phone_enabled!==false,whatsappEnabled:c.whatsapp_enabled!==false})})()},[]);
- async function upload(file:File,key:"logo"|"cover"){if(!["image/png","image/jpeg","image/webp"].includes(file.type)){setMsg("Use uma imagem PNG, JPG ou WEBP.");return}if(file.size>6*1024*1024){setMsg("A imagem deve ter no máximo 6 MB.");return}const path=id+"/"+key+"-"+crypto.randomUUID()+"-"+file.name.replace(/[^a-zA-Z0-9.]/g,"");const up=await sb.storage.from("company-assets").upload(path,file,{upsert:true,contentType:file.type});if(up.error)return setMsg(up.error.message);const u=sb.storage.from("company-assets").getPublicUrl(path).data.publicUrl;setF(v=>({...v,[key]:u}))}
- async function save(){setMsg("Salvando…");const a=await sb.from("companies").update({name:f.name,description:f.description,background_color:f.bg,primary_color:f.primary,text_color:f.text,secondary_text_color:f.secondary,button_text_color:f.buttonText,logo_url:f.logo,cover_url:f.cover,phone:f.phone,whatsapp:f.whatsapp,phone_enabled:f.phoneEnabled,whatsapp_enabled:f.whatsappEnabled,updated_at:new Date().toISOString()}).eq("id",id);const p=await sb.from("profiles").upsert({company_id:id,display_name:f.name,avatar_url:f.logo,secondary_image_url:f.cover,updated_at:new Date().toISOString()},{onConflict:"company_id"});setMsg(a.error?a.error.message:p.error?p.error.message:"Alterações salvas.")}
- return <main className="editor"><header><button onClick={()=>router.back()}>← Voltar</button><b className="logo">NFC<span>SMART</span></b><button className="btn dark" onClick={save}>Salvar</button></header><section className="editor-layout"><div className="editor-card"><p className="eyebrow">IDENTIDADE E ESTILO</p><h1>Monte sua página.</h1>
- <label>Nome<input value={f.name} onChange={e=>setF({...f,name:e.target.value})}/></label><label>Descrição<textarea value={f.description} onChange={e=>setF({...f,description:e.target.value})}/></label>
- <div className="uploadrow"><label>Foto de perfil<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>e.target.files&&upload(e.target.files[0],"logo")}/>{f.logo&&<img className="thumb round" src={f.logo}/>}</label><label>Foto secundária<input type="file" accept="image/*" onChange={e=>e.target.files&&upload(e.target.files[0],"cover")}/>{f.cover&&<img className="thumb" src={f.cover}/>}</label></div>
- <h3>Cores da página</h3><p className="muted">Personalize as cores dos textos e dos botões. O preview acompanha as alterações.</p><div className="colors color-grid"><label>Fundo<input type="color" value={f.bg} onChange={e=>setF({...f,bg:e.target.value})}/></label><label>Texto principal<input type="color" value={f.text} onChange={e=>setF({...f,text:e.target.value})}/></label><label>Texto secundário<input type="color" value={f.secondary} onChange={e=>setF({...f,secondary:e.target.value})}/></label><label>Fundo dos botões<input type="color" value={f.primary} onChange={e=>setF({...f,primary:e.target.value})}/></label><label>Texto dos botões<input type="color" value={f.buttonText} onChange={e=>setF({...f,buttonText:e.target.value})}/></label></div>
- <h3>Contato</h3><label>Telefone<input value={f.phone} placeholder="(61) 99999-9999" onChange={e=>setF({...f,phone:e.target.value})}/></label><label className="checkline"><input type="checkbox" checked={f.phoneEnabled} onChange={e=>setF({...f,phoneEnabled:e.target.checked})}/> Mostrar telefone</label><label>WhatsApp<input value={f.whatsapp} placeholder="(61) 99999-9999" onChange={e=>setF({...f,whatsapp:e.target.value})}/></label><label className="checkline"><input type="checkbox" checked={f.whatsappEnabled} onChange={e=>setF({...f,whatsappEnabled:e.target.checked})}/> Este número possui WhatsApp / Mostrar botão</label><p className="muted contact-help">Se não houver WhatsApp, o cliente continua podendo ligar ou copiar o número.</p>
- {msg&&<div className="notice">{msg}</div>}</div>
- <div className="phone" style={{background:f.bg,color:f.text}}><div className="phone-cover" style={{backgroundImage:f.cover?"url("+f.cover+")":undefined}}/><div className="phone-avatar" style={{borderColor:f.bg}}>{f.logo?<img src={f.logo}/>:f.name[0]}</div><h3>{f.name}</h3><p style={{color:f.secondary}}>{f.description}</p><div className="phone-grid"><span style={{background:f.primary,color:f.buttonText}}>WhatsApp</span><span style={{background:f.primary,color:f.buttonText}}>Instagram</span><span style={{background:f.primary,color:f.buttonText}}>PIX</span><span style={{background:f.primary,color:f.buttonText}}>Google</span>{f.phoneEnabled&&f.phone&&<span style={{background:f.primary,color:f.buttonText}}>Ligar</span>}{f.phone&&<span style={{background:f.primary,color:f.buttonText}}>Copiar número</span>}</div></div>
- </section></main>
+
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Check, ExternalLink, ImagePlus, LoaderCircle, Palette, Save, Smartphone, Wifi } from "lucide-react";
+import { createClient } from "@/lib/supabase-browser";
+
+type FormState = {
+  name: string; description: string; bg: string; primary: string; text: string;
+  secondary: string; buttonText: string; logo: string; cover: string;
+  phone: string; whatsapp: string; phoneEnabled: boolean; whatsappEnabled: boolean;
+};
+type PreviewAction = { id: string; label: string; enabled: boolean };
+
+const initial: FormState = {
+  name: "", description: "", bg: "#f6f6f3", primary: "#111111", text: "#111111",
+  secondary: "#777777", buttonText: "#ffffff", logo: "", cover: "",
+  phone: "", whatsapp: "", phoneEnabled: true, whatsappEnabled: true,
+};
+
+export default function Editor() {
+  const sb = useMemo(() => createClient(), []);
+  const router = useRouter();
+  const [id, setId] = useState("");
+  const [f, setF] = useState<FormState>(initial);
+  const [actions, setActions] = useState<PreviewAction[]>([]);
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState<"logo" | "cover" | "">("");
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) { router.push("/login"); return; }
+      const { data: member, error: memberError } = await sb
+        .from("company_members").select("company_id").eq("user_id", user.id).limit(1).maybeSingle();
+      if (memberError || !member) { router.push("/acesso-pendente"); return; }
+      const companyId = member.company_id;
+      const [companyResult, actionResult] = await Promise.all([
+        sb.from("companies").select("*").eq("id", companyId).single(),
+        sb.from("actions").select("id,label,enabled").eq("company_id", companyId).order("position"),
+      ]);
+      if (!alive) return;
+      if (companyResult.error || !companyResult.data) {
+        setMsg(companyResult.error?.message || "Não foi possível carregar a empresa.");
+        setLoading(false);
+        return;
+      }
+      const c = companyResult.data;
+      setId(companyId);
+      setF({
+        name: c.name || "", description: c.description || "",
+        bg: c.background_color || "#f6f6f3", primary: c.primary_color || "#111111",
+        text: c.text_color || "#111111", secondary: c.secondary_text_color || "#777777",
+        buttonText: c.button_text_color || "#ffffff", logo: c.logo_url || "",
+        cover: c.cover_url || "", phone: c.phone || "", whatsapp: c.whatsapp || "",
+        phoneEnabled: c.phone_enabled !== false, whatsappEnabled: c.whatsapp_enabled !== false,
+      });
+      setActions((actionResult.data || []) as PreviewAction[]);
+      setLoading(false);
+    })();
+    return () => { alive = false; };
+  }, [router, sb]);
+
+  async function upload(file: File | undefined, key: "logo" | "cover") {
+    if (!file || !id) return;
+    setMsg("");
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      setMsg("Formato inválido. Use PNG, JPG ou WEBP."); return;
+    }
+    if (file.size > 6 * 1024 * 1024) {
+      setMsg("A imagem deve ter no máximo 6 MB."); return;
+    }
+    setUploading(key);
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(-80);
+    const path = id + "/" + key + "-" + crypto.randomUUID() + "-" + safeName;
+    const result = await sb.storage.from("company-assets").upload(path, file, {
+      upsert: false, contentType: file.type, cacheControl: "3600",
+    });
+    if (result.error) setMsg(result.error.message);
+    else {
+      const url = sb.storage.from("company-assets").getPublicUrl(path).data.publicUrl;
+      setF((current) => ({ ...current, [key]: url }));
+      setMsg("Imagem enviada. Salve as alterações para publicar.");
+    }
+    setUploading("");
+  }
+
+  async function save() {
+    if (!id || saving) return;
+    if (!f.name.trim()) { setMsg("Informe o nome da empresa."); return; }
+    setSaving(true); setMsg("");
+    const company = await sb.from("companies").update({
+      name: f.name.trim(), description: f.description.trim(),
+      background_color: f.bg, primary_color: f.primary, text_color: f.text,
+      secondary_text_color: f.secondary, button_text_color: f.buttonText,
+      logo_url: f.logo || null, cover_url: f.cover || null,
+      phone: f.phone.trim() || null, whatsapp: f.whatsapp.trim() || null,
+      phone_enabled: f.phoneEnabled, whatsapp_enabled: f.whatsappEnabled,
+      updated_at: new Date().toISOString(),
+    }).eq("id", id);
+    if (company.error) { setMsg(company.error.message); setSaving(false); return; }
+    const profile = await sb.from("profiles").upsert({
+      company_id: id, display_name: f.name.trim(), avatar_url: f.logo || null,
+      secondary_image_url: f.cover || null, updated_at: new Date().toISOString(),
+    }, { onConflict: "company_id" });
+    setMsg(profile.error ? profile.error.message : "Alterações salvas com sucesso.");
+    setSaving(false);
+  }
+
+  const set = (key: keyof FormState, value: string | boolean) =>
+    setF((current) => ({ ...current, [key]: value }));
+
+  return (
+    <main className="premium-shell editor-premium">
+      <header className="premium-nav">
+        <Link href="/dashboard" className="brand"><span className="brand-mark"><Wifi size={17}/></span><span>NFC<span>SMART</span></span></Link>
+        <div className="editor-nav-actions">
+          <Link href="/dashboard" className="premium-btn"><ArrowLeft size={15}/> Painel</Link>
+          <button className="premium-btn premium-btn-dark" onClick={save} disabled={saving || loading || !id}>
+            {saving ? <LoaderCircle size={15} className="spin"/> : <Save size={15}/>} {saving ? "Salvando..." : "Salvar alterações"}
+          </button>
+        </div>
+      </header>
+
+      <section className="subpage editor-subpage">
+        <div className="section-kicker"><span className="live-dot"/> PERSONALIZAÇÃO</div>
+        <div className="hub-title"><div><h1>Sua marca. <span>Seu primeiro impacto.</span></h1><p>Configure como sua empresa será apresentada quando alguém aproximar o celular da sua TAG ou ler seu QR Code.</p></div></div>
+        {msg && <div className="editor-message" role="status">{msg}</div>}
+        {loading ? <div className="editor-loading"><LoaderCircle className="spin"/> Carregando seu perfil...</div> : (
+          <div className="editor-premium-layout">
+            <div className="editor-controls">
+              <section className="editor-section">
+                <div className="editor-section-heading"><span>01</span><div><b>Informações da empresa</b><small>Apresente sua marca com clareza.</small></div></div>
+                <label className="premium-field">Nome da empresa<input value={f.name} maxLength={80} onChange={e=>set("name",e.target.value)} placeholder="Ex.: Lux Tintas"/></label>
+                <label className="premium-field">Descrição<textarea value={f.description} maxLength={240} onChange={e=>set("description",e.target.value)} placeholder="Conte em poucas palavras o que sua empresa oferece."/></label>
+                <div className="editor-char-count">{f.description.length}/240 caracteres</div>
+              </section>
+
+              <section className="editor-section">
+                <div className="editor-section-heading"><span>02</span><div><b>Fotografia e identidade</b><small>Imagens nítidas deixam a página mais confiável.</small></div></div>
+                <div className="editor-upload-grid">
+                  <UploadField title="Foto de perfil" hint="PNG, JPG ou WEBP · até 6 MB" image={f.logo} round onChange={file=>upload(file,"logo")} uploading={uploading==="logo"}/>
+                  <UploadField title="Imagem de capa" hint="PNG, JPG ou WEBP · até 6 MB" image={f.cover} onChange={file=>upload(file,"cover")} uploading={uploading==="cover"}/>
+                </div>
+              </section>
+
+              <section className="editor-section">
+                <div className="editor-section-heading"><span>03</span><div><b>Paleta de cores</b><small>Use cores com contraste e consistência.</small></div></div>
+                <div className="premium-color-grid">
+                  <ColorField title="Fundo" value={f.bg} onChange={v=>set("bg",v)}/>
+                  <ColorField title="Texto principal" value={f.text} onChange={v=>set("text",v)}/>
+                  <ColorField title="Texto secundário" value={f.secondary} onChange={v=>set("secondary",v)}/>
+                  <ColorField title="Botões" value={f.primary} onChange={v=>set("primary",v)}/>
+                  <ColorField title="Texto dos botões" value={f.buttonText} onChange={v=>set("buttonText",v)}/>
+                </div>
+              </section>
+
+              <section className="editor-section">
+                <div className="editor-section-heading"><span>04</span><div><b>Formas de contato</b><small>Escolha quais contatos aparecem no perfil.</small></div></div>
+                <label className="premium-field">Telefone<input value={f.phone} onChange={e=>set("phone",e.target.value)} placeholder="(61) 99999-9999"/></label>
+                <Toggle checked={f.phoneEnabled} onChange={v=>set("phoneEnabled",v)} title="Exibir opção de ligação"/>
+                <label className="premium-field">WhatsApp<input value={f.whatsapp} onChange={e=>set("whatsapp",e.target.value)} placeholder="5561999999999"/></label>
+                <Toggle checked={f.whatsappEnabled} onChange={v=>set("whatsappEnabled",v)} title="Exibir botão do WhatsApp"/>
+              </section>
+              <button className="premium-btn premium-btn-dark editor-save-bottom" onClick={save} disabled={saving || !id}>
+                {saving ? <LoaderCircle size={15} className="spin"/> : <Check size={15}/>} {saving ? "Salvando..." : "Salvar e atualizar página"}
+              </button>
+            </div>
+
+            <aside className="editor-preview-column">
+              <div className="editor-preview-heading"><span><Smartphone size={15}/> PRÉ-VISUALIZAÇÃO</span><small>Atualiza enquanto você edita</small></div>
+              <div className="editor-device">
+                <div className="editor-device-top"><i/><i/><i/></div>
+                <div className="editor-live-preview" style={{background:f.bg,color:f.text}}>
+                  <div className="editor-preview-cover" style={f.cover?{backgroundImage:"url("+f.cover+")"}:{}}/>
+                  <div className="editor-preview-avatar" style={{borderColor:f.bg}}>{f.logo?<img src={f.logo} alt="Foto da empresa"/>:f.name.slice(0,1).toUpperCase()||"N"}</div>
+                  <h3>{f.name||"Nome da empresa"}</h3>
+                  <p>{f.description||"A descrição da sua empresa aparecerá aqui."}</p>
+                  <div className="editor-preview-actions">
+                    {f.phoneEnabled&&f.phone&&<PreviewButton label="Ligar" bg={f.primary} color={f.buttonText}/>}
+                    {f.whatsappEnabled&&f.whatsapp&&<PreviewButton label="WhatsApp" bg={f.primary} color={f.buttonText}/>}
+                    {actions.filter(a=>a.enabled).map(a=><PreviewButton key={a.id} label={a.label} bg={f.primary} color={f.buttonText}/>)}
+                    {!f.phone&&!f.whatsapp&&!actions.some(a=>a.enabled)&&<span className="editor-preview-empty">Suas ações aparecerão aqui após configuradas.</span>}
+                  </div>
+                  <small className="editor-preview-footer">NFC SMART · toque, abra, conecte.</small>
+                </div>
+              </div>
+              <Link href="/dashboard/actions" className="editor-manage-actions">Gerenciar botões e ações <ExternalLink size={14}/></Link>
+              <p className="editor-preview-tip"><Palette size={15}/> Dica: mantenha contraste suficiente entre o fundo, os textos e os botões para facilitar a leitura.</p>
+            </aside>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+
+function UploadField({title,hint,image,round,onChange,uploading}:{title:string;hint:string;image:string;round?:boolean;onChange:(file:File|undefined)=>void;uploading:boolean}) {
+  return <label className="editor-upload-field"><span className={"editor-upload-preview "+(round?"round":"")}>{image?<img src={image} alt={title}/>:<ImagePlus size={22}/>}</span><b>{title}</b><small>{hint}</small><span className="premium-btn">{uploading?<LoaderCircle size={14} className="spin"/>:<ImagePlus size={14}/>} {uploading?"Enviando...":"Escolher imagem"}</span><input type="file" accept="image/png,image/jpeg,image/webp" hidden disabled={uploading} onChange={(e:ChangeEvent<HTMLInputElement>)=>{onChange(e.target.files?.[0]);e.currentTarget.value="";}}/></label>;
+}
+function ColorField({title,value,onChange}:{title:string;value:string;onChange:(value:string)=>void}) {
+  return <label className="premium-color-field"><span>{title}</span><input type="color" value={value} onChange={e=>onChange(e.target.value)}/><code>{value.toUpperCase()}</code></label>;
+}
+function Toggle({checked,onChange,title}:{checked:boolean;onChange:(value:boolean)=>void;title:string}) {
+  return <label className="editor-toggle"><input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)}/><span className="editor-toggle-track"/><b>{title}</b></label>;
+}
+function PreviewButton({label,bg,color}:{label:string;bg:string;color:string}) {
+  return <span className="editor-preview-button" style={{background:bg,color}}>{label}</span>;
 }
