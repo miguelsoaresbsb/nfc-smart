@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ExternalLink, ImagePlus, LoaderCircle, Palette, Save, Smartphone, Wifi } from "lucide-react";
@@ -20,7 +20,7 @@ const initial: FormState = {
 };
 
 export default function Editor() {
-  const sb = createClient();
+  const sb = useMemo(() => createClient(), []);
   const router = useRouter();
   const [id, setId] = useState("");
   const [f, setF] = useState<FormState>(initial);
