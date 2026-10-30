@@ -19,6 +19,13 @@ const initial: FormState = {
   phone: "", whatsapp: "", phoneEnabled: true, whatsappEnabled: true,
 };
 
+const pageTemplates = [
+  { id: "clean", name: "Minimalista", note: "Claro e sofisticado", colors: { bg: "#F7F7F4", primary: "#171717", text: "#171717", secondary: "#737373", buttonText: "#FFFFFF" } },
+  { id: "dark", name: "Elegante", note: "Escuro e premium", colors: { bg: "#111318", primary: "#D6B77A", text: "#F7F4ED", secondary: "#B5B1A8", buttonText: "#171717" } },
+  { id: "nature", name: "Natural", note: "Leve e acolhedor", colors: { bg: "#F1F4EC", primary: "#49634D", text: "#26382A", secondary: "#718071", buttonText: "#FFFFFF" } },
+  { id: "warm", name: "Vibrante", note: "Destaque sua marca", colors: { bg: "#FFF7F0", primary: "#E66B3D", text: "#29201D", secondary: "#806D65", buttonText: "#FFFFFF" } },
+];
+
 export default function Editor() {
   const sb = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -133,6 +140,23 @@ export default function Editor() {
         {loading ? <div className="editor-loading"><LoaderCircle className="spin"/> Carregando seu perfil...</div> : (
           <div className="editor-premium-layout">
             <div className="editor-controls">
+              <section className="editor-section">
+                <div className="editor-section-heading"><span>00</span><div><b>Modelos de página</b><small>Escolha uma base visual. Você pode ajustar cada cor depois.</small></div></div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(145px,1fr))",gap:10}}>
+                  {pageTemplates.map((template) => (
+                    <button key={template.id} type="button" onClick={() => setF(current => ({...current,...template.colors}))}
+                      style={{textAlign:"left",padding:12,border:"1px solid #e7e7e2",borderRadius:14,background:"#fff",display:"grid",gap:9}}>
+                      <span style={{height:54,borderRadius:9,background:template.colors.bg,border:"1px solid #e7e7e2",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
+                        <i style={{width:25,height:7,borderRadius:8,background:template.colors.primary}}/>
+                        <i style={{width:35,height:7,borderRadius:8,background:template.colors.text,opacity:.75}}/>
+                        <i style={{width:19,height:19,borderRadius:6,background:template.colors.primary}}/>
+                      </span>
+                      <span style={{display:"grid",gap:2}}><b style={{fontSize:13,color:"#171717"}}>{template.name}</b><small style={{fontSize:11,color:"#777"}}>{template.note}</small></span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
               <section className="editor-section">
                 <div className="editor-section-heading"><span>01</span><div><b>Informações da empresa</b><small>Apresente sua marca com clareza.</small></div></div>
                 <label className="premium-field">Nome da empresa<input value={f.name} maxLength={80} onChange={e=>set("name",e.target.value)} placeholder="Ex.: Lux Tintas"/></label>
