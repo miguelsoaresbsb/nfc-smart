@@ -135,53 +135,43 @@ export default function Admin() {
   }
 
   return (
-    <main className="dash">
-      <header>
-        <b className="logo">NFC<span>SMART</span></b>
-        <span className="pill">MASTER</span>
+    <main className="premium-shell admin-premium">
+      <header className="premium-nav">
+        <a href="/dashboard" className="brand"><span className="brand-mark">N</span><span>NFC<span>SMART</span></span></a>
+        <span className="admin-top-label"><span className="live-dot"/> MASTER CONTROL</span>
       </header>
-
-      <section className="panel wide">
-        <p className="eyebrow">PAINEL DO DONO</p>
-        <h1>Solicitações de acesso.</h1>
-
-        {message && <div className="notice">{message}</div>}
-
-        <div className="admin-grid">
-          {requests.length === 0 && <p className="muted">Nenhuma solicitação encontrada.</p>}
-          {requests.map((request) => (
-            <div className="request" key={request.id}>
-              <div>
-                <strong>{request.company_name}</strong>
-                <span>{request.name} · {request.email}</span>
-              </div>
-              <em>{request.status}</em>
-              {request.status === "pending" && (
-                <div>
-                  <button
-                    className="btn dark"
-                    onClick={() => approve(request)}
-                    disabled={busy === request.id}
-                  >
-                    {busy === request.id ? "Processando…" : "Autorizar"}
-                  </button>
-                  <button onClick={() => reject(request.id)} disabled={busy === request.id}>
-                    Recusar
-                  </button>
+      <section className="subpage admin-subpage">
+        <div className="section-kicker"><span className="live-dot"/> ADMINISTRAÇÃO DA PLATAFORMA</div>
+        <div className="hub-title"><div><h1>Empresas. <span>Acessos. Controle.</span></h1><p>Revise solicitações, autorize novos clientes e acompanhe as empresas cadastradas.</p></div><span className="admin-count">{requests.filter(r=>r.status==="pending").length} pendentes</span></div>
+        {message && <div className="editor-message" role="status">{message}</div>}
+        <section className="admin-section">
+          <div className="admin-section-heading"><div><span className="section-kicker">FILA DE ENTRADA</span><h2>Solicitações de acesso</h2></div><span>{requests.length} registros</span></div>
+          <div className="admin-grid">
+            {requests.length === 0 && <p className="muted">Nenhuma solicitação encontrada.</p>}
+            {requests.map((request) => (
+              <article className="admin-request" key={request.id}>
+                <div className="admin-request-main">
+                  <span className="admin-request-avatar">{request.company_name.slice(0,1).toUpperCase()}</span>
+                  <div><strong>{request.company_name}</strong><span>{request.name} · {request.email}</span><small>Recebido em {new Date(request.created_at).toLocaleDateString("pt-BR")}</small></div>
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <h2>Empresas</h2>
-        {companies.map((company) => (
-          <div className="company-row" key={company.id}>
-            <span>{company.name}</span>
-            <small>/p/{company.slug}</small>
+                <span className={"admin-request-status status-"+request.status}>{request.status==="pending"?"PENDENTE":request.status==="approved"?"APROVADO":"RECUSADO"}</span>
+                {request.status === "pending" && (
+                  <div className="admin-request-actions">
+                    <button className="premium-btn premium-btn-dark" onClick={() => approve(request)} disabled={busy === request.id}>{busy === request.id ? "Processando…" : "Autorizar"}</button>
+                    <button className="premium-btn" onClick={() => reject(request.id)} disabled={busy === request.id}>Recusar</button>
+                  </div>
+                )}
+              </article>
+            ))}
           </div>
-        ))}
+        </section>
+        <section className="admin-section admin-companies-section">
+          <div className="admin-section-heading"><div><span className="section-kicker">BASE DE CLIENTES</span><h2>Empresas cadastradas</h2></div><span>{companies.length} empresas</span></div>
+          <div className="admin-company-list">
+            {companies.map(company => <div className="admin-company-row" key={company.id}><span className="admin-company-avatar">{company.name.slice(0,1).toUpperCase()}</span><b>{company.name}</b><code>/p/{company.slug}</code><a href={"/p/"+company.slug} target="_blank" rel="noreferrer">Abrir página ↗</a></div>)}
+            {!companies.length && <p className="muted">Nenhuma empresa cadastrada.</p>}
+          </div>
+        </section>
       </section>
     </main>
-  );
-}
+  );}
