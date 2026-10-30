@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import { ArrowLeft, ArrowRight, ImagePlus, QrCode, Wifi, ShieldCheck, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
 
@@ -12,6 +13,7 @@ export default function QRs() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
+  const [generating, setGenerating] = useState(false);
 
   async function load(cid: string) {
     const { data } = await sb.from("qr_codes")
@@ -41,6 +43,42 @@ export default function QRs() {
       load(member.company_id);
     })();
   }, []);
+
+  async function generatePageQr() {
+    if (!companyId || generating) return;
+    setGenerating(true); setMessage("");
+    try {
+      const { data: company, error: companyError } = await sb.from("companies")
+        .select("name,slug").eq("id", companyId).single();
+      if (companyError || !company?.slug) throw new Error("Não foi possível localizar o endereço público da empresa.");
+      const publicUrl = window.location.origin + "/p/" + company.slug;
+      const dataUrl = await QRCode.toDataURL(publicUrl, {
+        errorCorrectionLevel: "H", margin: 2, width: 900,
+        color: { dark: "#111111", light: "#FFFFFF" },
+      });
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const path = companyId + "/qr-codes/page-" + crypto.randomUUID() + ".png";
+      const upload = await sb.storage.from("company-assets").upload(path, blob, {
+        upsert: false, contentType: "image/png", cacheControl: "3600",
+      });
+      if (upload.error) throw new Error(upload.error.message);
+      const imageUrl = sb.storage.from("company-assets").getPublicUrl(path).data.publicUrl;
+      const { error } = await sb.from("qr_codes").insert({
+        company_id: companyId, name: "Página NFC - " + company.name,
+        image_url: imageUrl, storage_path: path, description: publicUrl,
+        position: items.length, enabled: true,
+      });
+      if (error) {
+        await sb.storage.from("company-assets").remove([path]);
+        throw new Error(error.message);
+      }
+      setMessage("QR Code da página pública gerado e salvo.");
+      await load(companyId);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível gerar o QR Code.");
+    } finally { setGenerating(false); }
+  }
 
   async function uploadQr(file: File) {
     if (!companyId) return;
@@ -125,7 +163,7 @@ export default function QRs() {
           </div>
         </div>
 
-        <div className="upload-showcase">
+        <div className="upload-showcase">\n          <button className="premium-btn premium-btn-dark" type="button" onClick={generatePageQr} disabled={generating || loading || !companyId}>{generating ? "Gerando QR Code..." : "Gerar QR Code da minha página"}</button>\n          <p>Crie automaticamente um QR Code que abre diretamente sua página pública NFC.</p>
           <div className="upload-art">
             <div className="upload-icon"><ImagePlus size={28}/></div>
             <div className="qr-floating"><QrCode size={34}/></div>
@@ -146,7 +184,7 @@ export default function QRs() {
               }}
             />
           </label>
-          <div className="info-row"><ShieldCheck size={15}/> Não geramos, decodificamos ou modificamos o conteúdo do QR.</div>
+          <div className="info-row"><ShieldCheck size={15}/> Você pode gerar QR Codes para sua página NFC ou enviar imagens de QR Code já existentes.</div>
           {message && <div className="notice">{message}</div>}
         </div>
 
