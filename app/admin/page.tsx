@@ -88,7 +88,7 @@ export default function Admin() {
       const subscription = await sb
         .from("subscriptions")
         .upsert(
-          { company_id: company.id, plan: "annual", status: "pending" },
+          { company_id: company.id, plan: "monthly", status: "pending" },
           { onConflict: "company_id" },
         );
       if (subscription.error) throw new Error("Não foi possível criar a assinatura: " + subscription.error.message);
