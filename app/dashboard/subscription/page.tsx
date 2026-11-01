@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, ExternalLink, Sparkles, Wifi } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock3, Sparkles, Wifi } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
 
 type SubscriptionRow = {
@@ -11,8 +11,6 @@ type SubscriptionRow = {
   started_at: string | null;
   expires_at: string | null;
 };
-
-const checkoutUrl = "https://pay.cakto.com.br/396w5rm_1175861";
 
 function statusText(status: SubscriptionRow["status"]) {
   if (status === "active") return "ATIVA";
@@ -79,7 +77,7 @@ export default function Subscription() {
         <div className="hub-title">
           <div>
             <h1>Plano simples. <span>Experiência completa.</span></h1>
-            <p>Seu NFC SMART permanece disponível enquanto o plano anual estiver válido.</p>
+            <p>A contratação combina a plaquinha física com a continuidade da plataforma digital.</p>
           </div>
         </div>
 
@@ -87,8 +85,11 @@ export default function Subscription() {
 
         <div className="subscription-card">
           <div className="plan-icon"><Sparkles size={22} /></div>
-          <small>PLANO ANUAL</small>
-          <h2>R$ 80 <span>/ ano</span></h2>
+          <small>VALORES DE CONTRATAÇÃO</small>
+          <h2>R$ 80,00 <span>pagamento único</span></h2>
+          <p className="subscription-expiry">Plaquinha física NFC personalizada.</p>
+          <h2>R$ 30,00 <span>/ mês</span></h2>
+          <p className="subscription-expiry">Acesso contínuo à página digital, painel de edição, hospedagem e manutenção do sistema.</p>
 
           {loading ? (
             <div className="subscription-status"><Clock3 size={15} /> CARREGANDO</div>
@@ -100,25 +101,18 @@ export default function Subscription() {
           )}
 
           <div className="plan-benefits">
-            <span>✓ Página pública permanente enquanto ativa</span>
-            <span>✓ Editor visual completo</span>
-            <span>✓ Ações e QR Codes</span>
-            <span>✓ Analytics</span>
+            <span>✓ Página digital vinculada à sua plaquinha</span>
+            <span>✓ Editor visual para atualizar seus dados</span>
+            <span>✓ Botões de WhatsApp, Instagram, Pix e localização</span>
+            <span>✓ QR Code e acompanhamento de interações</span>
           </div>
 
-          {expires && <p className="subscription-expiry">Válida até {expires}</p>}
+          {expires && <p className="subscription-expiry">Validade registrada atualmente: {expires}</p>}
 
-          {checkoutUrl ? (
-            <a href={checkoutUrl} target="_blank" rel="noreferrer" className="premium-btn">
-              {subscription?.status === "active" ? "Renovar assinatura" : "Assinar por R$ 80/ano"}
-              <ExternalLink size={15} />
-            </a>
-          ) : (
-            <div className="subscription-setup">
-              <b>Pagamento Cakto aguardando configuração</b>
-              <span>Assim que o checkout do plano anual for conectado, o botão de pagamento aparecerá aqui.</span>
-            </div>
-          )}
+          <div className="subscription-setup">
+            <b>Pagamento recorrente em configuração</b>
+            <span>Os novos valores já estão apresentados nesta aba. O checkout antigo de R$ 80 por ano não será usado, para evitar cobranças diferentes do novo modelo. A cobrança mensal será liberada após conectar o novo plano recorrente na Cakto.</span>
+          </div>
 
         </div>
       </section>
