@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Clock3, Sparkles, Wifi } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock3, ExternalLink, Sparkles, Wifi } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
+
+const caktoCheckoutUrl = process.env.NEXT_PUBLIC_CAKTO_CHECKOUT_URL || "https://pay.cakto.com.br/396w5rm_1175861";
 
 type SubscriptionRow = {
   status: "pending" | "active" | "expired" | "canceled";
@@ -87,7 +89,7 @@ export default function Subscription() {
           <div className="plan-icon"><Sparkles size={22} /></div>
           <small>VALORES DE CONTRATAÇÃO</small>
           <h2>R$ 80,00 <span>pagamento único</span></h2>
-          <p className="subscription-expiry">Plaquinha física NFC personalizada.</p>
+          <p className="subscription-expiry">Plaquinha física NFC personalizada. Valor cobrado separadamente na contratação da plaquinha.</p>
           <h2>R$ 30,00 <span>/ mês</span></h2>
           <p className="subscription-expiry">Acesso contínuo à página digital, painel de edição, hospedagem e manutenção do sistema.</p>
 
@@ -107,13 +109,18 @@ export default function Subscription() {
             <span>✓ QR Code e acompanhamento de interações</span>
           </div>
 
-          {expires && <p className="subscription-expiry">Validade registrada atualmente: {expires}</p>}
+          {expires && <p className="subscription-expiry">Acesso pago até: {expires}</p>}
 
-          <div className="subscription-setup">
-            <b>Pagamento recorrente em configuração</b>
-            <span>Os novos valores já estão apresentados nesta aba. O checkout antigo de R$ 80 por ano não será usado, para evitar cobranças diferentes do novo modelo. A cobrança mensal será liberada após conectar o novo plano recorrente na Cakto.</span>
-          </div>
-
+          <a
+            href={caktoCheckoutUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="premium-btn premium-btn-dark subscription-checkout"
+          >
+            {subscription?.status === "active" ? "Gerenciar / renovar assinatura" : "Assinar por R$ 30,00/mês"}
+            <ExternalLink size={15} />
+          </a>
+          <p className="subscription-expiry">A mensalidade é processada pela Cakto. O cancelamento interrompe as próximas cobranças; o acesso permanece até o fim do período já pago. A plaquinha física de R$ 80,00 é combinada e cobrada separadamente.</p>
         </div>
       </section>
     </main>
