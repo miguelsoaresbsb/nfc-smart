@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 type Payload = { secret?: string; event?: string; data?: Record<string, unknown> | Record<string, unknown>[] };
 const SECRET = Deno.env.get("CAKTO_WEBHOOK_SECRET") || "";
-const PRODUCT_ID = Deno.env.get("CAKTO_PRODUCT_ID") || "";
+const PRODUCT_ID = Deno.env.get("CAKTO_PRODUCT_ID") || "45d2743f-a019-40c5-9567-9311dc344b69";
 const TOLERANCE_SECONDS = 300;
 
 function timingSafeEqual(a: string, b: string) {
