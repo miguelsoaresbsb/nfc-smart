@@ -61,7 +61,7 @@ Deno.serve(async req => {
   const db = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
   const paid = new Set(["purchase_approved", "subscription_renewed", "subscription_resumed", "subscription_late_recovered"]);
-  const canceled = new Set(["subscription_canceled"]);
+  const canceled = new Set(["subscription_canceled", "subscription_paused"]);
   const revoked = new Set(["refund", "chargeback"]);
   const expired = new Set(["subscription_late", "subscription_renewal_refused"]);
   const recognized = new Set([...paid, ...canceled, ...revoked, ...expired, "checkout_abandonment"]);
@@ -87,14 +87,23 @@ Deno.serve(async req => {
         if (error) throw error; processed++; continue;
       }
 
-      const customer = (data.customer || {}) as Record<string, unknown>;
       const product = (data.product || {}) as Record<string, unknown>;
+      const productId = String(product.id || "");
+      if (!productId) throw new Error("missing_product_id");
+      if (PRODUCT_ID && productId !== PRODUCT_ID) {
+        const { error } = await db.from("webhook_events").update({ processed_at: new Date().toISOString() })
+          .eq("provider", "cakto").eq("external_event_id", externalId);
+        if (error) throw error;
+        processed++;
+        continue;
+      }
+
+      const customer = (data.customer || {}) as Record<string, unknown>;
       const sub = (data.subscription || {}) as Record<string, unknown>;
       const email = String(customer.email || "").trim().toLowerCase();
-      const productId = String(product.id || "");
       const subId = String(sub.id || "");
-      if (!email || !productId || !subId) throw new Error("missing_required_subscription_fields");
-      if (PRODUCT_ID && productId !== PRODUCT_ID) throw new Error("unexpected_cakto_product");
+      if (!email || !subId) throw new Error("missing_required_subscription_fields");
+      if (paid.has(event) && String(data.status || "") !== "paid") throw new Error("payment_not_confirmed");
 
       const { data: request, error: requestError } = await db.from("access_requests").select("company_id")
         .eq("email", email).eq("status", "approved").not("company_id", "is", null)
