@@ -90,7 +90,7 @@ export default function Subscription() {
           <small>VALORES DE CONTRATAÇÃO</small>
           <h2>R$ 80,00 <span>pagamento único</span></h2>
           <p className="subscription-expiry">Plaquinha física NFC personalizada. Valor cobrado separadamente na contratação da plaquinha.</p>
-          <h2>R$ 30,00 <span>/ mês</span></h2>
+          <h2>R$ 29,90 <span>/ mês</span></h2>
           <p className="subscription-expiry">Acesso contínuo à página digital, painel de edição, hospedagem e manutenção do sistema.</p>
 
           {loading ? (
@@ -117,7 +117,7 @@ export default function Subscription() {
             rel="noopener noreferrer"
             className="premium-btn premium-btn-dark subscription-checkout"
           >
-            {subscription?.status === "active" ? "Gerenciar / renovar assinatura" : "Assinar por R$ 30,00/mês"}
+            {subscription?.status === "active" ? "Gerenciar / renovar assinatura" : "Assinar por R$ 29,90/mês"}
             <ExternalLink size={15} />
           </a>
           <p className="subscription-expiry">A mensalidade é processada pela Cakto. O cancelamento interrompe as próximas cobranças; o acesso permanece até o fim do período já pago. A plaquinha física de R$ 80,00 é combinada e cobrada separadamente.</p>
