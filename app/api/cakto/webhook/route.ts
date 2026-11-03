@@ -88,7 +88,7 @@ async function processOrder(supabase: any, event: string, order: CaktoOrder, raw
     }
 
     if (isPaidEvent) {
-      const expectedAmount = Number(process.env.CAKTO_MONTHLY_AMOUNT || "30");
+      const expectedAmount = Number(process.env.CAKTO_MONTHLY_AMOUNT || "29.90");
       const paidAmount = Number(order.amount ?? order.offer?.price ?? order.subscription?.amount);
       if (!Number.isFinite(paidAmount) || Math.abs(paidAmount - expectedAmount) > 0.01) {
         throw new Error("O valor recebido não corresponde à mensalidade configurada.");
