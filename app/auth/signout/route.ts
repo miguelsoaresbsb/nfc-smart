@@ -1,2 +1,13 @@
-import {createClient} from "@/lib/supabase-server"; import {NextResponse} from "next/server";
-export async function POST(request:Request){const supabase=await createClient();await supabase.auth.signOut();return NextResponse.redirect(new URL("/login",request.url));}
+import { NextRequest } from "next/server";
+import { createAuthRouteClient } from "@/lib/auth-route-client";
+
+export async function POST(request: NextRequest) {
+  const { supabase, redirect } = createAuthRouteClient(request);
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) return redirect("/login?auth_error=signout");
+  } catch {
+    return redirect("/login?auth_error=signout");
+  }
+  return redirect("/login");
+}

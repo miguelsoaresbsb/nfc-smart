@@ -1,6 +1,7 @@
 "use client";
 
 import {useState} from "react";
+import {useModal} from "@/lib/use-modal";
 
 type PixActionData={
   id:string;
@@ -18,16 +19,18 @@ type PixActionData={
 export function PixAction({action}:{action:PixActionData}){
   const [open,setOpen]=useState(false);
   const [copied,setCopied]=useState("");
+  const [error,setError]=useState("");
+  const dialog=useModal(open,()=>setOpen(false));
   async function copy(value:string,type:string){
-    try{await navigator.clipboard.writeText(value);setCopied(type);setTimeout(()=>setCopied(""),1800)}catch{}
+    try{await navigator.clipboard.writeText(value);setError("");setCopied(type);setTimeout(()=>setCopied(""),1800)}catch{setError("Não foi possível copiar automaticamente. Selecione e copie o texto exibido.")}
   }
   return <>
     <button className="bio-action" data-action-id={action.id} onClick={()=>setOpen(true)}>
       <span>₿</span><b>{action.label}</b><small>↗</small>
     </button>
     {open&&<div className="pix-modal-backdrop" onClick={()=>setOpen(false)}>
-      <section className="pix-modal" onClick={e=>e.stopPropagation()}>
-        <button className="pix-close" onClick={()=>setOpen(false)}>×</button>
+      <section ref={dialog} role="dialog" aria-modal="true" aria-label="Pague via PIX" className="pix-modal" onClick={e=>e.stopPropagation()}>
+        <button aria-label="Fechar" className="pix-close" onClick={()=>setOpen(false)}>×</button>
         <div className="pix-modal-icon">PIX</div>
         <p className="eyebrow">PAGAMENTO</p>
         <h2>Pague via PIX</h2>
@@ -37,6 +40,7 @@ export function PixAction({action}:{action:PixActionData}){
         {action.qr_code?.image_url&&<img className="pix-qr" src={action.qr_code.image_url} alt="QR Code PIX" />}
         {action.pix_copy_paste&&<button className="pix-copy" onClick={()=>copy(action.pix_copy_paste!,"copypaste")}>{copied==="copypaste"?"Copiado!":"Copiar Pix Copia e Cola"}</button>}
         {action.pix_key&&<div className="pix-key-box"><small>CHAVE PIX · {action.pix_key_type||"chave"}</small><strong>{action.pix_key}</strong><button className="pix-copy" onClick={()=>copy(action.pix_key!,"key")}>{copied==="key"?"Copiado!":"Copiar chave PIX"}</button></div>}
+        {error&&<p role="status">{error}</p>}
         <p className="pix-help">Depois de copiar, abra o aplicativo do seu banco e faça o pagamento.</p>
       </section>
     </div>}

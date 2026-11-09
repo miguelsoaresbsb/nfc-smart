@@ -73,7 +73,7 @@ export default function Editor() {
   }, [router, sb]);
 
   async function upload(file: File | undefined, key: "logo" | "cover") {
-    if (!file || !id) return;
+    if (!file || !id || uploading || saving) return;
     setMsg("");
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
       setMsg("Formato inválido. Use PNG, JPG ou WEBP."); return;
@@ -97,7 +97,7 @@ export default function Editor() {
   }
 
   async function save() {
-    if (!id || saving) return;
+    if (!id || saving || uploading) return;
     if (!f.name.trim()) { setMsg("Informe o nome da empresa."); return; }
     setSaving(true); setMsg("");
     const company = await sb.from("companies").update({
@@ -108,10 +108,10 @@ export default function Editor() {
       phone: f.phone.trim() || null, whatsapp: f.whatsapp.trim() || null,
       phone_enabled: f.phoneEnabled, whatsapp_enabled: f.whatsappEnabled,
       updated_at: new Date().toISOString(),
-    }).eq("id", id);
+    }).eq("id", id).select("id").single();
     if (company.error) { setMsg(company.error.message); setSaving(false); return; }
     const profile = await sb.from("profiles").upsert({
-      company_id: id, display_name: f.name.trim(), avatar_url: f.logo || null,
+      company_id: id, display_name: f.name.trim(), tagline: f.description.trim() || null, avatar_url: f.logo || null,
       secondary_image_url: f.cover || null, updated_at: new Date().toISOString(),
     }, { onConflict: "company_id" });
     setMsg(profile.error ? profile.error.message : "Alterações salvas com sucesso.");
@@ -127,7 +127,7 @@ export default function Editor() {
         <Link href="/dashboard" className="brand"><span className="brand-mark"><Wifi size={17}/></span><span>NFC<span>SMART</span></span></Link>
         <div className="editor-nav-actions">
           <Link href="/dashboard" className="premium-btn"><ArrowLeft size={15}/> Painel</Link>
-          <button className="premium-btn premium-btn-dark" onClick={save} disabled={saving || loading || !id}>
+          <button className="premium-btn premium-btn-dark" onClick={save} disabled={saving || loading || !!uploading || !id}>
             {saving ? <LoaderCircle size={15} className="spin"/> : <Save size={15}/>} {saving ? "Salvando..." : "Salvar alterações"}
           </button>
         </div>
@@ -190,7 +190,7 @@ export default function Editor() {
                 <label className="premium-field">WhatsApp<input value={f.whatsapp} onChange={e=>set("whatsapp",e.target.value)} placeholder="5561999999999"/></label>
                 <Toggle checked={f.whatsappEnabled} onChange={v=>set("whatsappEnabled",v)} title="Exibir botão do WhatsApp"/>
               </section>
-              <button className="premium-btn premium-btn-dark editor-save-bottom" onClick={save} disabled={saving || !id}>
+              <button className="premium-btn premium-btn-dark editor-save-bottom" onClick={save} disabled={saving || !!uploading || !id}>
                 {saving ? <LoaderCircle size={15} className="spin"/> : <Check size={15}/>} {saving ? "Salvando..." : "Salvar e atualizar página"}
               </button>
             </div>

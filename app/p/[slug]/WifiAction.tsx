@@ -1,6 +1,7 @@
 "use client";
 
 import {useState} from "react";
+import {useModal} from "@/lib/use-modal";
 
 type WifiActionData={
   id:string;
@@ -20,13 +21,15 @@ function escapeWifi(value:string){
 export function WifiAction({action}:{action:WifiActionData}){
   const [open,setOpen]=useState(false);
   const [copied,setCopied]=useState("");
+  const [error,setError]=useState("");
+  const dialog=useModal(open,()=>setOpen(false));
   const ssid=action.wifi_ssid||"";
   const password=action.wifi_password||"";
   const security=action.wifi_security||"WPA";
   const payload=`WIFI:T:${security};S:${escapeWifi(ssid)};${security!=="nopass"?`P:${escapeWifi(password)};`:""}${action.wifi_hidden?"H:true;":""};`;
 
   async function copy(value:string,type:string){
-    try{await navigator.clipboard.writeText(value);setCopied(type);setTimeout(()=>setCopied(""),1800)}catch{}
+    try{await navigator.clipboard.writeText(value);setError("");setCopied(type);setTimeout(()=>setCopied(""),1800)}catch{setError("Não foi possível copiar automaticamente. Selecione e copie o texto exibido.")}
   }
 
   return <>
@@ -35,8 +38,8 @@ export function WifiAction({action}:{action:WifiActionData}){
     </button>
 
     {open&&<div className="pix-modal-backdrop wifi-backdrop" onClick={()=>setOpen(false)}>
-      <section className="pix-modal wifi-modal" onClick={e=>e.stopPropagation()}>
-        <button className="pix-close" onClick={()=>setOpen(false)}>×</button>
+      <section ref={dialog} role="dialog" aria-modal="true" aria-label="Conecte-se à rede" className="pix-modal wifi-modal" onClick={e=>e.stopPropagation()}>
+        <button aria-label="Fechar" className="pix-close" onClick={()=>setOpen(false)}>×</button>
         <div className="wifi-hero"><div className="wifi-orbit wifi-orbit-one"/><div className="wifi-orbit wifi-orbit-two"/><div className="wifi-symbol">⌁</div></div>
         <p className="eyebrow">CONEXÃO WI-FI</p>
         <h2>Conecte-se à rede</h2>
@@ -50,7 +53,8 @@ export function WifiAction({action}:{action:WifiActionData}){
         {password&&security!=="nopass"&&<button className="wifi-qr-button" onClick={()=>copy(password,"password")}><span>▦</span><div><b>{copied==="password"?"Senha copiada!":"Copiar somente a senha"}</b><small>Copiar a senha da rede</small></div><strong>›</strong></button>}
         {action.wifi_qr_code?.image_url&&<div className="wifi-qr-modal"><div className="wifi-qr-badge">QR Code Wi‑Fi</div><img className="wifi-qr-image" src={action.wifi_qr_code.image_url} alt={action.wifi_qr_code.name||`QR Code da rede Wi-Fi ${ssid}`} /><div className="wifi-qr-network"><span>QR CODE CADASTRADO</span><b>{action.wifi_qr_code.name||"Wi-Fi"}</b></div></div>}
         {!action.wifi_qr_code?.image_url&&<div className="wifi-qr-network"><span>QR CODE</span><b>Nenhum QR Code Wi‑Fi cadastrado nesta ação.</b></div>}
-        <p className="pix-help">O NFC SMART não gera QR Code. O QR Code exibido aqui é a imagem que a empresa enviou em <b>Dashboard → QR Codes</b>.</p>
+        {error&&<p role="status">{error}</p>}
+        <p className="pix-help">Use a câmera de outro celular para ler o QR Code ou copie a senha para conectar seu aparelho.</p>
       </section>
     </div>}
   </>;

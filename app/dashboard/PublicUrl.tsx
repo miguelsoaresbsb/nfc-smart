@@ -1,26 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import { getPublicPageUrl } from "@/lib/public-url";
 
-const PUBLIC_BASE_URL =
-  process.env.NEXT_PUBLIC_APP_URL || "https://nfc-smart-one.vercel.app";
 
 export default function PublicUrl({ slug }: { slug?: string | null }) {
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
 
   const validSlug = Boolean(slug?.trim());
   const url = validSlug
-    ? PUBLIC_BASE_URL.replace(/\/$/, "") + "/p/" + encodeURIComponent(slug!.trim())
+    ? getPublicPageUrl(slug!.trim())
     : "";
 
   async function copy() {
     if (!url) return;
+    setError("");
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
       setCopied(false);
+      setError("Não foi possível copiar. Selecione o endereço acima e copie manualmente.");
     }
   }
 
@@ -38,6 +40,7 @@ export default function PublicUrl({ slug }: { slug?: string | null }) {
           <small>O endereço público ainda não foi configurado para esta empresa.</small>
         )}
       </div>
+      {error && <p role="alert">{error}</p>}
       {validSlug && (
         <div className="public-url-actions">
           <a className="btn ghost" href={url} target="_blank" rel="noreferrer">Abrir página</a>

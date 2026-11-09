@@ -1,9 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, LockKeyhole, Wifi } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
+import { safeAuthPath } from "@/lib/auth-redirect";
 
 export default function Login() {
   const [email,setEmail]=useState("");
@@ -11,10 +12,29 @@ export default function Login() {
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
   const router=useRouter();
+  useEffect(() => {
+    const reason = new URLSearchParams(window.location.search).get("auth_error");
+    if (reason === "callback") setError("O link de confirmação expirou ou é inválido. Entre com seu e-mail e senha ou solicite um novo link.");
+    if (reason === "signout") setError("Não foi possível encerrar sua sessão. Tente novamente.");
+  }, []);
   async function go(e:React.FormEvent) {
-    e.preventDefault(); setError(""); setLoading(true);
-    const {error}=await createClient().auth.signInWithPassword({email:email.trim(),password});
-    if(error){setError(error.message);setLoading(false);} else router.push("/dashboard");
+    e.preventDefault();
+    if (loading) return;
+    setError(""); setLoading(true);
+    try {
+      const { error } = await createClient().auth.signInWithPassword({ email: email.trim(), password });
+      if (error) {
+        setError(error.code === "invalid_credentials" ? "E-mail ou senha incorretos." : error.code === "email_not_confirmed" ? "Confirme seu e-mail antes de entrar. Verifique também a caixa de spam." : error.message);
+        return;
+      }
+      const next = safeAuthPath(new URLSearchParams(window.location.search).get("next"));
+      router.replace(next);
+      router.refresh();
+    } catch {
+      setError("Não foi possível entrar. Verifique sua conexão e tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   }
   return (
     <main className="premium-shell auth-premium">
@@ -26,7 +46,7 @@ export default function Login() {
           <h1>Bem-vindo de volta.</h1><p>Acesse seu espaço para gerenciar sua presença digital.</p>
           <label>E-mail<input type="email" autoComplete="email" placeholder="voce@empresa.com" value={email} onChange={e=>setEmail(e.target.value)} required/></label>
           <label>Senha<input type="password" autoComplete="current-password" placeholder="Sua senha" value={password} onChange={e=>setPassword(e.target.value)} required/></label>
-          {error&&<div className="error">{error}</div>}
+          {error&&<div className="error" role="alert">{error}</div>}
           <button className="premium-btn premium-btn-dark auth-submit" disabled={loading}>{loading?"Entrando...":"Entrar no painel"} <ArrowRight size={15}/></button>
           <div className="auth-premium-footer">Ainda não tem acesso? <Link href="/solicitar-acesso">Solicitar cadastro</Link></div>
         </form>

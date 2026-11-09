@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { ArrowLeft, ArrowRight, ImagePlus, QrCode, Wifi, ShieldCheck, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
+import {getPublicPageUrl} from "@/lib/public-url";
 
 export default function QRs() {
-  const sb = createClient();
+  const sb = useMemo(() => createClient(), []);
   const [companyId, setCompanyId] = useState("");
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,11 +17,12 @@ export default function QRs() {
   const [generating, setGenerating] = useState(false);
 
   async function load(cid: string) {
-    const { data } = await sb.from("qr_codes")
+    const { data, error } = await sb.from("qr_codes")
       .select("id,name,image_url,storage_path,description,position,enabled")
       .eq("company_id", cid)
       .order("position");
-    setItems(data || []);
+    if(error) setMessage(error.message);
+    else setItems(data || []);
     setLoading(false);
   }
 
@@ -34,24 +36,24 @@ export default function QRs() {
       const { data: member } = await sb.from("company_members")
         .select("company_id")
         .eq("user_id", user.id)
-        .maybeSingle();
+        .limit(1).maybeSingle();
       if (!member) {
         window.location.href = "/acesso-pendente";
         return;
       }
       setCompanyId(member.company_id);
-      load(member.company_id);
-    })();
-  }, []);
+      await load(member.company_id);
+    })().catch(()=>{setMessage("Não foi possível carregar os QR Codes. Atualize a página para tentar novamente.");setLoading(false);});
+  }, [sb]);
 
   async function generatePageQr() {
-    if (!companyId || generating) return;
+    if (!companyId || generating || uploading) return;
     setGenerating(true); setMessage("");
     try {
       const { data: company, error: companyError } = await sb.from("companies")
         .select("name,slug").eq("id", companyId).single();
       if (companyError || !company?.slug) throw new Error("Não foi possível localizar o endereço público da empresa.");
-      const publicUrl = window.location.origin + "/p/" + company.slug;
+      const publicUrl = getPublicPageUrl(company.slug);
       const dataUrl = await QRCode.toDataURL(publicUrl, {
         errorCorrectionLevel: "H", margin: 2, width: 900,
         color: { dark: "#111111", light: "#FFFFFF" },
@@ -67,7 +69,7 @@ export default function QRs() {
       const { error } = await sb.from("qr_codes").insert({
         company_id: companyId, name: "Página NFC - " + company.name,
         image_url: imageUrl, storage_path: path, description: publicUrl,
-        position: items.length, enabled: true,
+        position: items.reduce((max,item)=>Math.max(max,item.position),-1)+1, enabled: true,
       });
       if (error) {
         await sb.storage.from("company-assets").remove([path]);
@@ -81,7 +83,7 @@ export default function QRs() {
   }
 
   async function uploadQr(file: File) {
-    if (!companyId) return;
+    if (!companyId || uploading || generating) return;
     setMessage("");
     const allowed = ["image/png", "image/jpeg", "image/webp"];
     if (!allowed.includes(file.type)) {
@@ -114,7 +116,7 @@ export default function QRs() {
       name: file.name.replace(/\.[^.]+$/, ""),
       image_url: imageUrl,
       storage_path: path,
-      position: items.length,
+      position: items.reduce((max,item)=>Math.max(max,item.position),-1)+1,
       enabled: true,
     });
 
@@ -131,8 +133,8 @@ export default function QRs() {
   }
 
   async function removeQr(item: any) {
-    if (!confirm("Excluir este QR Code?")) return;
-    const { error } = await sb.from("qr_codes").delete().eq("id", item.id);
+    if (uploading || generating || !confirm("Excluir este QR Code? As ações que usam esta imagem ficarão sem QR Code.")) return;
+    const { error } = await sb.from("qr_codes").delete().eq("id", item.id).eq("company_id", companyId).select("id").single();
     if (error) {
       setMessage(error.message);
       return;
@@ -163,7 +165,9 @@ export default function QRs() {
           </div>
         </div>
 
-        <div className="upload-showcase">\n          <button className="premium-btn premium-btn-dark" type="button" onClick={generatePageQr} disabled={generating || loading || !companyId}>{generating ? "Gerando QR Code..." : "Gerar QR Code da minha página"}</button>\n          <p>Crie automaticamente um QR Code que abre diretamente sua página pública NFC.</p>
+        <div className="upload-showcase">
+          <button className="premium-btn premium-btn-dark" type="button" onClick={generatePageQr} disabled={generating || uploading || loading || !companyId}>{generating ? "Gerando QR Code..." : "Gerar QR Code da minha página"}</button>
+          <p>Crie automaticamente um QR Code que abre diretamente sua página pública NFC.</p>
           <div className="upload-art">
             <div className="upload-icon"><ImagePlus size={28}/></div>
             <div className="qr-floating"><QrCode size={34}/></div>
@@ -176,7 +180,7 @@ export default function QRs() {
               type="file"
               accept="image/png,image/jpeg,image/webp"
               hidden
-              disabled={uploading}
+              disabled={uploading || generating || loading || !companyId}
               onChange={e => {
                 const file = e.target.files?.[0];
                 if (file) uploadQr(file);
@@ -195,7 +199,7 @@ export default function QRs() {
                 <img src={item.image_url} alt={item.name} />
                 <div>
                   <strong>{item.name}</strong>
-                  <small>Disponível em Ações → PIX → QR Code</small>
+                  <small>Disponível em Ações → PIX ou Wi-Fi → QR Code</small>
                 </div>
                 <button className="premium-btn danger" onClick={() => removeQr(item)}>
                   <Trash2 size={15}/> Excluir
@@ -210,7 +214,7 @@ export default function QRs() {
         )}
 
         <div className="qr-next">
-          <p><strong>Depois de enviar:</strong> vá em <b>Ações</b>, escolha <b>PIX</b> e selecione o QR Code no campo “Sem QR Code”.</p>
+          <p><strong>Depois de enviar:</strong> vá em <b>Ações</b>, escolha <b>PIX</b> ou <b>Wi-Fi</b> e selecione o QR Code no campo “Sem QR Code”.</p>
           <Link href="/dashboard/actions" className="premium-btn">Ir para Ações <ArrowRight size={15}/></Link>
         </div>
       </section>

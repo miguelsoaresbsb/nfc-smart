@@ -16,15 +16,6 @@ type RequestRow = {
 
 type CompanyRow = { id: string; name: string; slug: string };
 
-function makeSlug(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "") || "empresa";
-}
-
 export default function Admin() {
   const sb = createClient();
   const [requests, setRequests] = useState<RequestRow[]>([]);
@@ -45,75 +36,18 @@ export default function Admin() {
   }
 
   useEffect(() => {
-    load();
+    load().catch(() => setMessage("Não foi possível carregar os dados. Atualize a página."));
   }, []);
 
   async function approve(request: RequestRow) {
-    if (!request.user_id) {
-      setMessage("Esta solicitação não possui usuário vinculado.");
-      return;
-    }
-
+    if (busy) return;
     setBusy(request.id);
     setMessage("");
-
     try {
-      let company = companies.find(
-        (item) => item.name.trim().toLowerCase() === request.company_name.trim().toLowerCase(),
-      );
-
-      if (!company) {
-        let slug = makeSlug(request.company_name);
-        const { data: sameSlug } = await sb.from("companies").select("id").eq("slug", slug).maybeSingle();
-        if (sameSlug) slug = slug + "-" + request.id.slice(0, 6);
-
-        const created = await sb
-          .from("companies")
-          .insert({ name: request.company_name.trim(), slug })
-          .select("id,name,slug")
-          .single();
-
-        if (created.error) throw new Error("Não foi possível criar a empresa: " + created.error.message);
-        company = created.data;
-      }
-
-      const profile = await sb
-        .from("profiles")
-        .upsert(
-          { company_id: company.id, display_name: request.company_name.trim() },
-          { onConflict: "company_id" },
-        );
-      if (profile.error) throw new Error("Não foi possível criar o perfil: " + profile.error.message);
-
-      const subscription = await sb
-        .from("subscriptions")
-        .upsert(
-          { company_id: company.id, plan: "monthly", status: "pending" },
-          { onConflict: "company_id" },
-        );
-      if (subscription.error) throw new Error("Não foi possível criar a assinatura: " + subscription.error.message);
-
-      const member = await sb
-        .from("company_members")
-        .upsert(
-          { company_id: company.id, user_id: request.user_id, role: "owner" },
-          { onConflict: "company_id,user_id" },
-        );
-      if (member.error) throw new Error("Não foi possível vincular o usuário: " + member.error.message);
-
-      const approved = await sb
-        .from("access_requests")
-        .update({
-          status: "approved",
-          company_id: company.id,
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq("id", request.id);
-
-      if (approved.error) throw new Error("Não foi possível concluir a autorização: " + approved.error.message);
-
-      setMessage("Acesso autorizado. A empresa foi criada/vinculada e aguarda a ativação da assinatura.");
+      const result = await sb.rpc("approve_access_request", { request_id: request.id });
+      if (result.error) throw new Error(result.error.message);
       await load();
+      setMessage("Acesso autorizado. A empresa foi criada e aguarda a ativação da assinatura.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível autorizar a solicitação.");
     } finally {
@@ -122,16 +56,21 @@ export default function Admin() {
   }
 
   async function reject(id: string) {
+    if (busy) return;
     setBusy(id);
     setMessage("");
-    const result = await sb
-      .from("access_requests")
-      .update({ status: "rejected", reviewed_at: new Date().toISOString() })
-      .eq("id", id);
-
-    setMessage(result.error ? result.error.message : "Solicitação recusada.");
-    setBusy("");
-    await load();
+    try {
+      const result = await sb.from("access_requests")
+        .update({ status: "rejected", reviewed_at: new Date().toISOString() })
+        .eq("id", id).eq("status", "pending").select("id");
+      if (result.error) throw new Error(result.error.message);
+      await load();
+      setMessage(result.data?.length ? "Solicitação recusada." : "Esta solicitação já foi analisada. A lista foi atualizada.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível recusar a solicitação.");
+    } finally {
+      setBusy("");
+    }
   }
 
   return (
@@ -157,8 +96,8 @@ export default function Admin() {
                 <span className={"admin-request-status status-"+request.status}>{request.status==="pending"?"PENDENTE":request.status==="approved"?"APROVADO":"RECUSADO"}</span>
                 {request.status === "pending" && (
                   <div className="admin-request-actions">
-                    <button className="premium-btn premium-btn-dark" onClick={() => approve(request)} disabled={busy === request.id}>{busy === request.id ? "Processando…" : "Autorizar"}</button>
-                    <button className="premium-btn" onClick={() => reject(request.id)} disabled={busy === request.id}>Recusar</button>
+                    <button className="premium-btn premium-btn-dark" onClick={() => approve(request)} disabled={Boolean(busy)}>{busy === request.id ? "Processando…" : "Autorizar"}</button>
+                    <button className="premium-btn" onClick={() => reject(request.id)} disabled={Boolean(busy)}>Recusar</button>
                   </div>
                 )}
               </article>

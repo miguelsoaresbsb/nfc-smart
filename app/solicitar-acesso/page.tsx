@@ -7,18 +7,17 @@ import { createClient } from "@/lib/supabase-browser";
 const REQUEST_TIMEOUT_MS = 15000;
 
 function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
-  return Promise.race([
-    Promise.resolve(promise),
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error("A conexão demorou mais que o esperado. Tente novamente.")), ms),
-    ),
-  ]);
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("A conexão demorou mais que o esperado. Se já enviou o cadastro, tente entrar antes de enviar novamente.")), ms);
+    Promise.resolve(promise).then(resolve, reject).finally(() => clearTimeout(timer));
+  });
 }
 
 export default function SolicitarAcesso() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -62,14 +61,15 @@ export default function SolicitarAcesso() {
         return;
       }
 
-      if (!data.user) {
-        setError("O cadastro não foi criado. Tente novamente.");
+      if (!data.user || data.user.identities?.length === 0) {
+        setError("Não foi possível criar este cadastro. Se já tem uma conta, entre com seu e-mail e senha.");
         setLoading(false);
         return;
       }
 
       // A trigger do banco cria a solicitação de acesso quando o usuário é criado.
       // Não fazemos signIn automático aqui: a autorização do Admin Master é o gate de acesso.
+      setNeedsConfirmation(!data.session && !data.user.email_confirmed_at);
       setSuccess(true);
       setLoading(false);
     } catch (err) {
@@ -91,18 +91,20 @@ export default function SolicitarAcesso() {
         <p className="lead">Preencha seus dados para solicitar acesso ao NFC Smart.</p>
 
         {success ? (
-          <div className="form-success">
+          <div className="form-success" role="status">
             Solicitação enviada com sucesso. Seu pedido está aguardando autorização do administrador.
             Você poderá entrar no painel somente depois que o administrador autorizar seu acesso.
+            {needsConfirmation && <p>Enviamos um link para confirmar seu e-mail. Verifique sua caixa de entrada e a pasta de spam.</p>}
+            <p><Link href="/login">Ir para o login</Link></p>
           </div>
         ) : (
           <form className="auth-form" onSubmit={submit}>
-            <label>Nome<input name="name" required placeholder="Seu nome" /></label>
-            <label>Empresa<input name="company_name" required placeholder="Nome da empresa" /></label>
-            <label>E-mail<input name="email" required type="email" placeholder="voce@email.com" /></label>
-            <label>WhatsApp<input name="phone" placeholder="(00) 00000-0000" /></label>
-            <label>Senha<input name="password" required minLength={6} type="password" placeholder="Mínimo de 6 caracteres" /></label>
-            {error && <p className="form-error">{error}</p>}
+            <label>Nome<input name="name" required maxLength={120} autoComplete="name" placeholder="Seu nome" /></label>
+            <label>Empresa<input name="company_name" required maxLength={160} autoComplete="organization" placeholder="Nome da empresa" /></label>
+            <label>E-mail<input name="email" required type="email" autoComplete="email" placeholder="voce@email.com" /></label>
+            <label>WhatsApp<input name="phone" type="tel" autoComplete="tel" maxLength={30} placeholder="(00) 00000-0000" /></label>
+            <label>Senha<input name="password" required minLength={6} type="password" autoComplete="new-password" placeholder="Mínimo de 6 caracteres" /></label>
+            {error && <p className="form-error" role="alert">{error}</p>}
             <button className="btn dark big" type="submit" disabled={loading}>
               {loading ? "Enviando..." : "Solicitar acesso"}
             </button>

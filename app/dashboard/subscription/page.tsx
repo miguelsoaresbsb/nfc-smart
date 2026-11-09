@@ -22,47 +22,62 @@ function statusText(status: SubscriptionRow["status"]) {
 }
 
 export default function Subscription() {
-  const sb = createClient();
+  const [sb] = useState(createClient);
   const [subscription, setSubscription] = useState<SubscriptionRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
 
   useEffect(() => {
+    let alive = true;
     (async () => {
-      const { data: auth } = await sb.auth.getUser();
-      if (!auth.user) {
-        window.location.href = "/login";
-        return;
-      }
+      try {
+        const { data: auth, error: authError } = await sb.auth.getUser();
+        if (authError) throw authError;
+        if (!alive) return;
+        if (!auth.user) {
+          window.location.href = "/login";
+          return;
+        }
 
-      const { data: member, error: memberError } = await sb
-        .from("company_members")
-        .select("company_id")
-        .eq("user_id", auth.user.id)
-        .limit(1)
-        .maybeSingle();
+        setAccountEmail(auth.user.email || "");
+        const { data: member, error: memberError } = await sb
+          .from("company_members")
+          .select("company_id")
+          .eq("user_id", auth.user.id)
+          .limit(1)
+          .maybeSingle();
 
-      if (memberError || !member) {
-        setError(memberError?.message || "Empresa não encontrada.");
+        if (!alive) return;
+        if (memberError || !member) {
+          setError(memberError?.message || "Empresa não encontrada.");
+          setLoading(false);
+          return;
+        }
+
+        const { data, error: subscriptionError } = await sb
+          .from("subscriptions")
+          .select("status,plan,started_at,expires_at")
+          .eq("company_id", member.company_id)
+          .maybeSingle();
+
+        if (!alive) return;
+        if (subscriptionError) setError("Não foi possível carregar sua assinatura. Atualize a página para tentar novamente.");
+        else setSubscription(data);
         setLoading(false);
-        return;
+      } catch {
+        if (alive) { setError("Não foi possível carregar sua assinatura. Atualize a página para tentar novamente."); setLoading(false); }
       }
-
-      const { data, error: subscriptionError } = await sb
-        .from("subscriptions")
-        .select("status,plan,started_at,expires_at")
-        .eq("company_id", member.company_id)
-        .maybeSingle();
-
-      if (subscriptionError) setError(subscriptionError.message);
-      else setSubscription(data);
-      setLoading(false);
     })();
-  }, []);
+    return () => { alive = false; };
+  }, [sb]);
 
   const expires = subscription?.expires_at
-    ? new Date(subscription.expires_at).toLocaleDateString("pt-BR")
+    ? new Date(subscription.expires_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
     : null;
+  const effectiveStatus = subscription?.status === "active" && subscription.expires_at && new Date(subscription.expires_at).getTime() <= Date.now()
+    ? "expired" : subscription?.status;
+  const active = effectiveStatus === "active";
 
   return (
     <main className="premium-shell subscription-page">
@@ -97,8 +112,8 @@ export default function Subscription() {
             <div className="subscription-status"><Clock3 size={15} /> CARREGANDO</div>
           ) : (
             <div className="subscription-status">
-              {subscription?.status === "active" ? <CheckCircle2 size={15} /> : <Clock3 size={15} />}
-              {subscription ? statusText(subscription.status) : "SEM ASSINATURA"}
+              {active ? <CheckCircle2 size={15} /> : <Clock3 size={15} />}
+              {effectiveStatus ? statusText(effectiveStatus) : "SEM ASSINATURA"}
             </div>
           )}
 
@@ -111,15 +126,16 @@ export default function Subscription() {
 
           {expires && <p className="subscription-expiry">Acesso pago até: {expires}</p>}
 
-          <a
+          {!loading && !error && !active && <a
             href={caktoCheckoutUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="premium-btn premium-btn-dark subscription-checkout"
           >
-            {subscription?.status === "active" ? "Gerenciar / renovar assinatura" : "Assinar por R$ 29,90/mês"}
+            Assinar por R$ 29,90/mês
             <ExternalLink size={15} />
-          </a>
+          </a>}
+          {!loading && !error && (active ? <p className="subscription-expiry">Sua assinatura já está ativa. A renovação é cobrada pela Cakto; evite contratar uma segunda assinatura para a mesma empresa.</p> : <p className="subscription-expiry">No checkout, use o mesmo e-mail da sua conta: <strong>{accountEmail}</strong>. O pagamento é vinculado automaticamente à empresa aprovada.</p>)}
           <p className="subscription-expiry">A mensalidade é processada pela Cakto. O cancelamento interrompe as próximas cobranças; o acesso permanece até o fim do período já pago. A plaquinha física de R$ 80,00 é combinada e cobrada separadamente.</p>
         </div>
       </section>
