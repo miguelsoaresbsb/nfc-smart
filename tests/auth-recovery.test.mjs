@@ -63,3 +63,12 @@ test('password provider errors are translated and failed signout never reports p
  const saved=await finishPasswordRecovery(failedSignout.auth,recoveryIntent(uid,sid),'Good-password-2026','Good-password-2026');
  assert.equal(saved.status,200);assert.equal(saved.body.signoutFailed,true);assert.equal(saved.clearIntent,true);
 });
+
+test('authentication redirects preserve the browser host and reject malformed host origins', async () => {
+  const { authRequestOrigin } = await import('../lib/auth-recovery.ts');
+  assert.equal(authRequestOrigin('localhost:3000', 'http:', 'http://0.0.0.0:3000'), 'http://localhost:3000');
+  assert.equal(authRequestOrigin('nfc-smart-one.vercel.app', 'https:', 'https://internal.invalid'), 'https://nfc-smart-one.vercel.app');
+  for (const host of ['evil.example/redirect', 'user@evil.example', 'evil.example?x=1', 'evil.example\\path', 'evil.example\nHost: other']) {
+    assert.equal(authRequestOrigin(host, 'https:', 'https://safe.example'), 'https://safe.example');
+  }
+});

@@ -11,6 +11,10 @@ INSERT INTO public.actions(id,company_id,type,label,url,position) VALUES
 ('a89459b2-a59a-4cd6-9c01-b6e1e9a90102','a89459b2-a59a-4cd6-9c01-b6e1e9a90001','website','Second','https://example.com/second',1),
 ('a89459b2-a59a-4cd6-9c01-b6e1e9a90103','a89459b2-a59a-4cd6-9c01-b6e1e9a90002','website','Other','https://example.com/other',0);
 SELECT set_config('request.jwt.claim.sub',(SELECT user_id::text FROM public.company_members WHERE company_id='a89459b2-a59a-4cd6-9c01-b6e1e9a90001' LIMIT 1),true);
+INSERT INTO public.subscriptions(company_id,status,expires_at)
+VALUES ('a89459b2-a59a-4cd6-9c01-b6e1e9a90001','active',now()+interval '1 day');
+INSERT INTO public.access_requests(name,email,company_name,user_id,status,company_id)
+VALUES ('Order test',(SELECT email FROM auth.users WHERE id=auth.uid()),'Order test',auth.uid(),'approved','a89459b2-a59a-4cd6-9c01-b6e1e9a90001');
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN
   PERFORM public.reorder_company_actions('a89459b2-a59a-4cd6-9c01-b6e1e9a90001',ARRAY['a89459b2-a59a-4cd6-9c01-b6e1e9a90102','a89459b2-a59a-4cd6-9c01-b6e1e9a90101']::uuid[]);

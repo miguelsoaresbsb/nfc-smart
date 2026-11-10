@@ -21,6 +21,7 @@ export function PixAction({action}:{action:PixActionData}){
   const [copied,setCopied]=useState("");
   const [error,setError]=useState("");
   const dialog=useModal(open,()=>setOpen(false));
+  const sameCopyValue=Boolean(action.pix_key&&action.pix_copy_paste&&action.pix_key.trim()===action.pix_copy_paste.trim());
   async function copy(value:string,type:string){
     try{await navigator.clipboard.writeText(value);setError("");setCopied(type);setTimeout(()=>setCopied(""),1800)}catch{setError("Não foi possível copiar automaticamente. Selecione e copie o texto exibido.")}
   }
@@ -39,7 +40,7 @@ export function PixAction({action}:{action:PixActionData}){
         {action.pix_description&&<p className="pix-description">{action.pix_description}</p>}
         {action.qr_code?.image_url&&<img className="pix-qr" src={action.qr_code.image_url} alt="QR Code PIX" />}
         {action.pix_copy_paste&&<button className="pix-copy" onClick={()=>copy(action.pix_copy_paste!,"copypaste")}>{copied==="copypaste"?"Copiado!":"Copiar Pix Copia e Cola"}</button>}
-        {action.pix_key&&<div className="pix-key-box"><small>CHAVE PIX · {action.pix_key_type||"chave"}</small><strong>{action.pix_key}</strong><button className="pix-copy" onClick={()=>copy(action.pix_key!,"key")}>{copied==="key"?"Copiado!":"Copiar chave PIX"}</button></div>}
+        {action.pix_key&&<div className="pix-key-box"><small>CHAVE PIX · {action.pix_key_type||"chave"}</small><strong>{action.pix_key}</strong>{!sameCopyValue&&<button className="pix-copy" onClick={()=>copy(action.pix_key!,"key")}>{copied==="key"?"Copiado!":"Copiar chave PIX"}</button>}</div>}
         {error&&<p role="status">{error}</p>}
         <p className="pix-help">Depois de copiar, abra o aplicativo do seu banco e faça o pagamento.</p>
       </section>

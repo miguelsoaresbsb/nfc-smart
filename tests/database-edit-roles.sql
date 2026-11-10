@@ -22,6 +22,10 @@ END
 $test$;
 INSERT INTO public.company_members(company_id, user_id, role)
 VALUES ('e2be91f8-0e02-465f-b8f0-a9a4dc9f7001', auth.uid(), 'viewer');
+INSERT INTO public.subscriptions(company_id,status,expires_at)
+VALUES ('e2be91f8-0e02-465f-b8f0-a9a4dc9f7001','active',now()+interval '1 day');
+INSERT INTO public.access_requests(name,email,company_name,user_id,status,company_id)
+VALUES ('Role test',(SELECT email FROM auth.users WHERE id=auth.uid()),'Role test',auth.uid(),'approved','e2be91f8-0e02-465f-b8f0-a9a4dc9f7001');
 SET LOCAL ROLE authenticated;
 DO $test$
 DECLARE affected integer;

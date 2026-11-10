@@ -36,8 +36,8 @@ export default function SolicitarAcesso() {
     const phone = String(form.get("phone") || "").trim();
     const password = String(form.get("password") || "");
 
-    if (!name || !companyName || !email || password.length < 6) {
-      setError("Preencha os campos obrigatórios e use uma senha com pelo menos 6 caracteres.");
+    if (!name || !companyName || !email || password.length < 8) {
+      setError("Preencha os campos obrigatórios e use uma senha com pelo menos 8 caracteres.");
       setLoading(false);
       return;
     }
@@ -96,7 +96,7 @@ export default function SolicitarAcesso() {
         {success ? (
           <div className="form-success" role="status">
             <b>Cadastro recebido.</b> Seu pedido está aguardando autorização do administrador.
-            Após a aprovação, você poderá personalizar sua página e contratar a assinatura para publicá-la.
+            Após a aprovação, ative a assinatura para liberar a personalização e a página pública.
             {needsConfirmation && <p>Enviamos um link para confirmar seu e-mail. Verifique sua caixa de entrada e a pasta de spam.</p>}
             <p><Link href="/login">Ir para o login</Link></p>
           </div>
@@ -106,7 +106,7 @@ export default function SolicitarAcesso() {
             <label>Empresa<input name="company_name" required maxLength={160} autoComplete="organization" placeholder="Nome da empresa" /></label>
             <label>E-mail<input name="email" required type="email" autoComplete="email" placeholder="voce@email.com" /></label>
             <label>WhatsApp<input name="phone" type="tel" autoComplete="tel" maxLength={30} placeholder="(00) 00000-0000" /></label>
-            <label>Senha<input name="password" required minLength={6} type="password" autoComplete="new-password" placeholder="Mínimo de 6 caracteres" /></label>
+            <label>Senha<input name="password" required minLength={8} maxLength={128} type="password" autoComplete="new-password" placeholder="Mínimo de 8 caracteres" /></label>
             {error && <p className="form-error" role="alert">{error}</p>}
             <button className="btn dark big" type="submit" disabled={loading}>
               {loading ? "Enviando..." : "Solicitar acesso"}
@@ -114,7 +114,7 @@ export default function SolicitarAcesso() {
           </form>
         )}
 
-        {!success && <p className="auth-flow-context"><b>Como funciona</b>O cadastro é gratuito. Primeiro o administrador aprova sua empresa; depois você configura a página e ativa a assinatura.</p>}
+        {!success && <p className="auth-flow-context"><b>Como funciona</b>O cadastro é gratuito. Primeiro o administrador aprova sua empresa; depois a assinatura ativa libera os recursos da página.</p>}
         <p className="auth-footer">
           <Link href="/">Voltar</Link> · <Link href="/login">Já tenho acesso</Link>
         </p>

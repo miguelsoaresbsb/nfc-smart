@@ -1,16 +1,16 @@
 import { NextRequest } from "next/server";
 import { createAuthRouteClient } from "@/lib/auth-route-client";
 import { RECOVERY_COOKIE, finishPasswordRecovery, isSameAuthOrigin } from "@/lib/auth-recovery";
+import { readLimitedBody } from "@/supabase/functions/_shared/request-body";
 
 export async function POST(request: NextRequest) {
   const { supabase, json } = createAuthRouteClient(request);
   if (!isSameAuthOrigin(request.headers.get("origin"), request.headers.get("host") || request.nextUrl.host, request.nextUrl.protocol)) return json({ error: "Solicitação inválida. Atualize a página." }, 403);
-  if (Number(request.headers.get("content-length")) > 2048) return json({ error: "Solicitação inválida." }, 413);
   let body: { password?: unknown; confirmation?: unknown };
+  const read = await readLimitedBody(request, 2048);
+  if (read.error) return json({ error: "Solicitação inválida." }, read.status);
   try {
-    const raw = await request.text();
-    if (raw.length > 2048) return json({ error: "Solicitação inválida." }, 413);
-    body = JSON.parse(raw);
+    body = JSON.parse(read.body!);
     if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "Solicitação inválida." }, 400);
   } catch { return json({ error: "Solicitação inválida." }, 400); }
   try {

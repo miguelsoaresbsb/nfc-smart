@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowDown, ArrowUp, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
 import { actionPayload, actionTypes, emptyActionForm, formFromAction, moveAction, type ActionForm, type ActionType, type EditableAction } from "@/lib/action-editor";
+import { actionIdentity, contactIdentities, uniquePublicActions } from "@/lib/action-duplicates";
 import { getSegmentTemplate, missingTemplateActions, type TemplateActionSuggestion } from "@/lib/segment-templates";
 import "../content-editor.css";
 
@@ -28,8 +29,10 @@ function Actions() {
   const nameInput = useRef<HTMLInputElement>(null), builder = useRef<HTMLDivElement>(null);
   const template = getSegmentTemplate(search.get("template"));
   const suggestions = template && dataReady ? missingTemplateActions(template, items, contacts) : [];
-  const directContactExists = !editingId && ((form.type === "whatsapp" && contacts.whatsapp && contacts.whatsappEnabled !== false)
-    || (form.type === "phone" && contacts.phone && contacts.phoneEnabled !== false));
+  const contactKeys = contactIdentities(contacts);
+  const draftDestination = actionIdentity({ type: form.type, url: form.url });
+  const directContactExists = Boolean(draftDestination && contactKeys.has(draftDestination));
+  const publicIds = new Set(uniquePublicActions(items, contacts).map(action => action.id));
 
   async function load(id: string) {
     setDataReady(false);
@@ -77,6 +80,10 @@ function Actions() {
     if (busy || loading || !dataReady || !companyId || !canEdit || directContactExists) return;
     let payload: ReturnType<typeof actionPayload>;
     try { payload = actionPayload(form); } catch (error) { setMessage(error instanceof Error ? error.message : "Confira os dados do botão."); return; }
+    const identity = actionIdentity(payload);
+    const duplicate = identity && items.find(action => action.id !== editingId && actionIdentity(action) === identity);
+    if (duplicate) { setMessage(`O destino já está no botão “${duplicate.label}”. Edite ou ative esse botão para manter um único acesso.`); return; }
+    if (identity && contactKeys.has(identity)) { setMessage("Este destino já está configurado nos contatos da página. Edite-o em Minha página."); return; }
     setBusy(true); setMessage("");
     try {
       const result = editingId
@@ -106,6 +113,10 @@ function Actions() {
     if (busy || !dataReady || !canEdit) return;
     if (!action.enabled) {
       try { actionPayload(formFromAction(action)); } catch { startEdit(action); setMessage("Complete o destino deste botão antes de ativá-lo."); return; }
+      const identity = actionIdentity(action);
+      if (identity && (contactKeys.has(identity) || items.some(other => other.id !== action.id && other.enabled && actionIdentity(other) === identity))) {
+        setMessage("Este destino já aparece em outro botão ou contato. Edite o destino antes de ativar um acesso repetido."); return;
+      }
     }
     setBusy(true); setMessage("");
     try {
@@ -184,7 +195,7 @@ function Actions() {
           onDrop={event => { event.preventDefault(); const source = event.dataTransfer.getData("text/plain"); if (source === draggedId) void reorder(source, action.id); }}>
           <div className="editable-action-summary"><button className="action-drag-handle" type="button" draggable={canEdit && dataReady && !busy} disabled={!canEdit || !dataReady || busy} aria-label={"Arrastar " + action.label}
             onDragStart={event => { event.dataTransfer.setData("text/plain", action.id); event.dataTransfer.effectAllowed = "move"; setDraggedId(action.id); }} onDragEnd={() => setDraggedId(null)}><GripVertical size={18}/></button>
-            <span className="action-order-number">{index + 1}</span><div><strong>{action.label}</strong><small>{action.type === "pix" ? "Pagamento por PIX" : action.type === "wifi" ? "Wi-Fi · " + (action.wifi_ssid || "Rede") : action.url}</small><span className="action-visibility">{action.enabled ? "Visível na página" : "Oculto da página"}</span></div></div>
+            <span className="action-order-number">{index + 1}</span><div><strong>{action.label}</strong><small>{action.type === "pix" ? "Pagamento por PIX" : action.type === "wifi" ? "Wi-Fi · " + (action.wifi_ssid || "Rede") : action.url}</small><span className="action-visibility">{!action.enabled ? "Oculto da página" : publicIds.has(action.id) ? "Visível na página" : "Destino repetido · revise este botão"}</span></div></div>
           <div className="editable-action-controls"><div className="action-move-controls"><button type="button" disabled={!canEdit || !dataReady || busy || index === 0} onClick={() => void reorder(action.id, items[index - 1].id)} aria-label={"Mover " + action.label + " para cima"}><ArrowUp size={15}/></button><button type="button" disabled={!canEdit || !dataReady || busy || index === items.length - 1} onClick={() => void reorder(action.id, items[index + 1].id)} aria-label={"Mover " + action.label + " para baixo"}><ArrowDown size={15}/></button></div>
             <button type="button" onClick={() => startEdit(action)} disabled={!canEdit || !dataReady || busy} aria-pressed={editingId === action.id}><Pencil size={14}/> Editar</button>
             <button type="button" onClick={() => void toggle(action)} disabled={!canEdit || !dataReady || busy} aria-label={(action.enabled ? "Ocultar " : "Ativar ") + action.label}>{action.enabled ? "Ocultar" : "Ativar"}</button>

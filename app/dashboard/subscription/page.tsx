@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Clock3, ExternalLink, Sparkles, Wifi } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
+import { hasPaidSubscription } from "@/lib/subscription-access";
 
 const caktoCheckoutUrl = process.env.NEXT_PUBLIC_CAKTO_CHECKOUT_URL || "https://pay.cakto.com.br/396w5rm_1175861";
 
@@ -75,9 +76,9 @@ export default function Subscription() {
   const expires = subscription?.expires_at
     ? new Date(subscription.expires_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
     : null;
-  const effectiveStatus = subscription?.status === "active" && subscription.expires_at && new Date(subscription.expires_at).getTime() <= Date.now()
+  const effectiveStatus = subscription?.status === "active" && !hasPaidSubscription(subscription)
     ? "expired" : subscription?.status;
-  const active = effectiveStatus === "active";
+  const active = hasPaidSubscription(subscription);
 
   return (
     <main className="premium-shell subscription-page">

@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+import { authRequestOrigin } from "@/lib/auth-recovery";
 
 /** Route handlers must forward both refreshed cookies and the SSR cache headers. */
 export function createAuthRouteClient(request: NextRequest) {
@@ -8,6 +9,7 @@ export function createAuthRouteClient(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      cookieOptions: { secure: request.nextUrl.protocol === "https:", sameSite: "lax" },
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (cookies, headers) => {
@@ -31,7 +33,8 @@ export function createAuthRouteClient(request: NextRequest) {
     return result;
   }
   function redirect(path: string, status: 303 | 307 = 303) {
-    return forward(NextResponse.redirect(new URL(path, request.url), status));
+    const origin = authRequestOrigin(request.headers.get("host"), request.nextUrl.protocol, request.nextUrl.origin);
+    return forward(NextResponse.redirect(new URL(path, origin), status));
   }
   function json(body: Record<string, unknown>, status = 200) {
     return forward(NextResponse.json(body, { status }));

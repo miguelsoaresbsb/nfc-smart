@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase-server";
+import { createPublicClient } from "@/lib/supabase-public";
+import { uniquePublicActions } from "@/lib/action-duplicates";
 import { publicActionTarget } from "@/lib/action-target";
 import { PublicInteractions } from "./PublicInteractions";
 import { PixAction } from "./PixAction";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const sb = await createClient();
+  const sb = createPublicClient();
   const { data: c, error } = await sb.from("companies").select("*").eq("slug", slug).maybeSingle();
   if (error) throw new Error("Não foi possível carregar a página. Tente novamente.");
   if (!c) notFound();
@@ -22,7 +23,8 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   ]);
   if (profile.error || actions.error) throw new Error("Não foi possível carregar os botões. Tente novamente.");
   const p = profile.data;
-  const availableActions = (actions.data || []).map(x => ({ ...x, target: x.type === "pix" || x.type === "wifi" ? null : publicActionTarget(x.type, x.url) }));
+  const availableActions = uniquePublicActions(actions.data || [], { phone: c.phone, whatsapp: c.whatsapp, phoneEnabled: c.phone_enabled, whatsappEnabled: c.whatsapp_enabled })
+    .map(x => ({ ...x, target: x.type === "pix" || x.type === "wifi" ? null : publicActionTarget(x.type, x.url) }));
   const hasContacts = (c.phone_enabled !== false && c.phone) || (c.whatsapp_enabled !== false && c.whatsapp);
   return <main className="bio" style={{ "--bg": c.background_color, "--ink": c.text_color, "--secondary": c.secondary_text_color, "--primary": c.primary_color, "--button-text": c.button_text_color } as CSSProperties}>
     <PublicInteractions companyId={c.id}/>

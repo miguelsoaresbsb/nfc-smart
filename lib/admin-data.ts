@@ -1,3 +1,5 @@
+import { hasPaidSubscription } from "./subscription-access.ts";
+
 export type AccessRequest = {
   id: string;
   name: string;
@@ -34,9 +36,8 @@ export type CompanyAccount = AdminCompany & {
 
 export function subscriptionStatus(subscription: AdminSubscription | null, now = Date.now()): CompanyStatus {
   if (!subscription) return "pending";
-  if (subscription.status !== "active" || !subscription.expires_at) return subscription.status;
-  const expires = new Date(subscription.expires_at).getTime();
-  return !Number.isFinite(expires) || expires <= now ? "expired" : "active";
+  if (subscription.status !== "active") return subscription.status;
+  return hasPaidSubscription(subscription, now) ? "active" : "expired";
 }
 
 export function companyAccounts(

@@ -1,3 +1,5 @@
+import { readLimitedBody } from "./request-body.ts";
+
 // Shared by Vercel and Supabase Edge. Never persist the original body, which
 // contains the webhook secret and private customer details.
 export type CaktoConfig = { secret: string; productId: string; monthlyAmount?: number };
@@ -7,7 +9,16 @@ const paidEvents = new Set(["purchase_approved", "subscription_renewed", "subscr
 const supportedEvents = new Set([...paidEvents, "subscription_canceled", "subscription_paused", "refund", "chargeback", "subscription_late", "subscription_renewal_refused"]);
 const MAX_BYTES = 1024 * 1024;
 function object(value: unknown): value is RecordValue { return value !== null && typeof value === "object" && !Array.isArray(value); }
-function identifier(value: unknown) { return (typeof value === "string" || typeof value === "number") ? String(value).trim().slice(0, 200) : ""; }
+function identifier(value: unknown) {
+  if (typeof value !== "string" && !(typeof value === "number" && Number.isSafeInteger(value))) return "";
+  const text = String(value).trim();
+  return text.length <= 200 ? text : "";
+}
+function money(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+}
+export function readCaktoBody(request: Request) { return readLimitedBody(request, MAX_BYTES); }
+
 function date(value: unknown): Date | null {
   if (typeof value !== "string" || !value.trim()) return null;
   const parsed = new Date(value); return Number.isFinite(parsed.getTime()) ? parsed : null;
@@ -45,38 +56,40 @@ export function normalizeCaktoOrder(event: string, value: unknown, config: Cakto
   if (paidEvents.has(event)) {
     if (value.status !== "paid") throw new Error("payment_not_confirmed");
     if (value.currency && value.currency !== "BRL") throw new Error("invalid_payment_currency");
-    const amount = Number(value.amount), expected = config.monthlyAmount ?? 29.90;
+    const amount = money(value.amount), expected = config.monthlyAmount ?? 29.90;
     // Cakto's baseAmount and offer.price are the product price; amount is the
     // total charged to the buyer and may include checkout fees or interest.
     // Require the recurring product's full price, without accepting an
     // underpayment or a different offer with the same product ID.
     const offer = object(value.offer) ? value.offer : {};
-    const base = value.baseAmount == null ? null : Number(value.baseAmount);
-    const offered = offer.price == null ? null : Number(offer.price);
-    const matchesPlan = (price: number | null) => price !== null && Number.isFinite(price) && Number.isFinite(expected) && Math.abs(price - expected) <= 0.001;
+    const base = value.baseAmount == null ? null : money(value.baseAmount);
+    const offered = offer.price == null ? null : money(offer.price);
+    const matchesPlan = (price: number | null) => price !== null && Number.isFinite(expected) && expected > 0 && Math.abs(price - expected) <= 0.001;
     const listedPrice = base ?? offered ?? amount;
-    if (value.amount == null || !Number.isFinite(amount) || !matchesPlan(listedPrice)
-      || (base !== null && !matchesPlan(base))
-      || (offered !== null && !matchesPlan(offered))
+    if (amount === null || !matchesPlan(listedPrice)
+      || (value.baseAmount != null && !matchesPlan(base))
+      || (offer.price != null && !matchesPlan(offered))
       || amount + 0.001 < expected) {
       // Authenticated diagnostic only: never log identity, payment credentials, signatures or raw body.
       console.error("Cakto amount mismatch", JSON.stringify({
         expected: Number.isFinite(expected) ? expected : null,
-        charged: value.amount == null || !Number.isFinite(amount) ? null : amount,
+        charged: amount,
         base: base !== null && Number.isFinite(base) ? base : null,
         offer: offered !== null && Number.isFinite(offered) ? offered : null,
         currency: value.currency === "BRL" ? "BRL" : "other",
       }));
       throw new Error("invalid_payment_amount");
     }
-    if (!paidAt) throw new Error("missing_payment_date");
+    if (!paidAt || paidAt.getTime() > Date.now() + 5 * 60000) throw new Error("invalid_payment_date");
     periodEnd = date(subscription.next_payment_date);
     if (!periodEnd) {
       // Anchor to the payment, never processing time or current expiry. A retry
       // or purchase_approved + subscription_renewed grants the same period.
       const recurrence = Number(subscription.recurrence_period);
-      if (Number.isFinite(recurrence) && recurrence > 0 && recurrence <= 366) {
+      if (Number.isFinite(recurrence) && recurrence > 0 && recurrence <= 31) {
         periodEnd = new Date(paidAt.getTime() + recurrence * 86400000);
+      } else if (subscription.recurrence_period != null) {
+        throw new Error("invalid_monthly_recurrence");
       } else {
         periodEnd = new Date(paidAt);
         const day = periodEnd.getUTCDate();
@@ -85,7 +98,7 @@ export function normalizeCaktoOrder(event: string, value: unknown, config: Cakto
         periodEnd.setUTCDate(Math.min(day, lastDay));
       }
     }
-    if (periodEnd <= paidAt) throw new Error("invalid_payment_period");
+    if (periodEnd <= paidAt || periodEnd.getTime() - paidAt.getTime() > 32 * 86400000) throw new Error("invalid_payment_period");
   }
   const eventAt = event === "refund" ? date(value.refundedAt)
     : event === "chargeback" ? date(value.chargedbackAt)
@@ -102,9 +115,9 @@ export async function handleCaktoWebhook(request: Request, config: CaktoConfig, 
   const reply = (body: RecordValue, status = 200) => Response.json(body, { status });
   if (request.method !== "POST") return reply({ ok: false, error: "method_not_allowed" }, 405);
   if (!config.secret || !config.productId) return reply({ ok: false, error: "webhook_not_configured" }, 503);
-  if (Number(request.headers.get("content-length")) > MAX_BYTES) return reply({ ok: false, error: "payload_too_large" }, 413);
-  const rawBody = await request.text();
-  if (new TextEncoder().encode(rawBody).length > MAX_BYTES) return reply({ ok: false, error: "payload_too_large" }, 413);
+  const read = await readCaktoBody(request);
+  if (read.error) return reply({ ok: false, error: read.error }, read.status);
+  const rawBody = read.body!;
   let payload: unknown;
   try { payload = JSON.parse(rawBody); } catch { return reply({ ok: false, error: "invalid_json" }, 400); }
   if (!object(payload)) return reply({ ok: false, error: "invalid_payload" }, 400);

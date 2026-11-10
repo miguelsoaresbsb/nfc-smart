@@ -56,24 +56,25 @@ SELECT set_config('request.jwt.claim.sub', (
   WHERE NOT EXISTS (SELECT 1 FROM public.platform_admins a WHERE a.user_id = u.id)
   ORDER BY u.id LIMIT 1
 ), true);
+SELECT set_config('test.customer.email', (SELECT email FROM auth.users WHERE id=auth.uid()), true);
 SET LOCAL ROLE authenticated;
 
 DO $test$
 BEGIN
   BEGIN
     INSERT INTO public.access_requests(name, email, company_name, user_id, status)
-    VALUES ('RLS test', 'rls-test@example.invalid', 'RLS test', auth.uid(), 'approved');
+    VALUES ('RLS test', current_setting('test.customer.email'), 'RLS test', auth.uid(), 'approved');
     RAISE EXCEPTION 'Self-approved access request unexpectedly accepted';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
   BEGIN
     INSERT INTO public.access_requests(name, email, company_name, user_id, status, company_id)
-    VALUES ('RLS test', 'rls-test@example.invalid', 'RLS test', auth.uid(), 'pending', 'eb2e91f8-0e02-465f-b8f0-a9a4dc9f7001');
+    VALUES ('RLS test', current_setting('test.customer.email'), 'RLS test', auth.uid(), 'pending', 'eb2e91f8-0e02-465f-b8f0-a9a4dc9f7001');
     RAISE EXCEPTION 'Self-selected company unexpectedly accepted';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
   INSERT INTO public.access_requests(name, email, company_name, user_id, status)
-  VALUES ('RLS test', 'rls-test@example.invalid', 'RLS test', auth.uid(), 'pending');
+  VALUES ('RLS test', current_setting('test.customer.email'), 'RLS test', auth.uid(), 'pending');
 END
 $test$;
 RESET ROLE;

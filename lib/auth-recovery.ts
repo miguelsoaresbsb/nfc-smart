@@ -13,6 +13,15 @@ export function isSameAuthOrigin(origin: string | null, host: string, protocol: 
   } catch { return false; }
 }
 
+/** Use the public Host for redirects when Next binds an internal interface. */
+export function authRequestOrigin(host: string | null, protocol: string, fallback: string): string {
+  if (!host) return fallback;
+  try {
+    const origin = new URL(`${protocol}//${host}`).origin;
+    return isSameAuthOrigin(origin, host, protocol) ? origin : fallback;
+  } catch { return fallback; }
+}
+
 /** Intent is a UX gate bound to a verified session, never an authorization token. */
 export function recoveryIntent(userId: string, sessionId: string, now = Date.now()): string {
   return `${userId}:${sessionId}:${Math.floor(now / 1000)}`;

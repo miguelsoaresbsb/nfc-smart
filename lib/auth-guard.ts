@@ -1,15 +1,17 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
+import { hasPaidSubscription, type AccessSubscription } from "@/lib/subscription-access";
 
 export const getAuthorizedAccess = cache(async () => {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) redirect("/login");
+  if (!user.email_confirmed_at) redirect("/login?auth_error=confirm");
   const { data: admin, error: adminError } = await supabase
     .from("platform_admins").select("user_id").eq("user_id", user.id).maybeSingle();
   if (adminError) throw new Error("Não foi possível verificar seu acesso. Tente novamente.");
-  if (admin) return { user, isAdmin: true as const, company: null };
+  if (admin) return { user, isAdmin: true as const, company: null, subscription: null, hasPaidAccess: true };
 
   const { data: requests, error: requestError } = await supabase
     .from("access_requests").select("company_id")
@@ -27,5 +29,19 @@ export const getAuthorizedAccess = cache(async () => {
     phone: string | null; whatsapp: string | null; phone_enabled: boolean; whatsapp_enabled: boolean;
   } | null;
   if (!company) redirect("/acesso-pendente");
-  return { user, isAdmin: false as const, company, role: member.role as string };
+  const { data: subscription, error: subscriptionError } = await supabase
+    .from("subscriptions").select("status,expires_at").eq("company_id", company.id).maybeSingle();
+  if (subscriptionError) throw new Error("Não foi possível verificar sua assinatura. Tente novamente.");
+  return {
+    user, isAdmin: false as const, company, role: member.role as string,
+    subscription: subscription as AccessSubscription | null,
+    hasPaidAccess: hasPaidSubscription(subscription),
+  };
+});
+
+/** Defense in depth: every paid route verifies entitlement on the server. */
+export const requirePaidAccess = cache(async () => {
+  const access = await getAuthorizedAccess();
+  if (!access.hasPaidAccess) redirect("/dashboard/subscription?required=1");
+  return access;
 });

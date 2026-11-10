@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { handleCaktoWebhook } from "@/supabase/functions/_shared/cakto";
+import { handleCaktoWebhook, readCaktoBody } from "@/supabase/functions/_shared/cakto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,8 +12,9 @@ export async function POST(request: Request) {
     // Production uses the Supabase Edge receiver. Forward the exact bytes and
     // signing headers; credentials stay in Supabase instead of being copied to
     // Vercel. The receiver validates both body-secret and optional signature.
-    const rawBody = await request.text();
-    if (new TextEncoder().encode(rawBody).length > 1024 * 1024) return Response.json({ ok: false, error: "payload_too_large" }, { status: 413 });
+    const read = await readCaktoBody(request);
+    if (read.error) return Response.json({ ok: false, error: read.error }, { status: read.status });
+    const rawBody = read.body!;
     const headers = new Headers({ "content-type": "application/json" });
     for (const name of ["x-cakto-signature", "x-cakto-timestamp"]) {
       const value = request.headers.get(name);
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
     }
     try {
       const response = await fetch(new URL("/functions/v1/cakto-webhook", url), {
-        method: "POST", headers, body: rawBody, cache: "no-store", signal: AbortSignal.timeout(6500),
+        method: "POST", headers, body: rawBody, cache: "no-store", redirect: "error", signal: AbortSignal.timeout(6500),
       });
       return new Response(await response.text(), { status: response.status, headers: { "content-type": "application/json" } });
     } catch {

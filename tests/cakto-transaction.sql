@@ -17,7 +17,7 @@ begin
      or has_function_privilege('authenticated','public.process_cakto_event(jsonb)','EXECUTE') then
     raise exception 'webhook RPC is callable by public clients';
   end if;
-  insert into auth.users(id,email) values(v_user,v_email);
+  insert into auth.users(id,email,email_confirmed_at) values(v_user,v_email,now());
   insert into public.companies(id,name,slug) values(v_company,'Cakto regression', 'cakto-regression-' || v_company);
   insert into public.company_members(company_id,user_id,role) values(v_company,v_user,'owner');
   insert into public.access_requests(name,email,company_name,user_id,status,company_id)

@@ -14,7 +14,7 @@ SaaS para páginas permanentes vinculadas a TAGs NFC. Next.js + Supabase + Verce
 
 Use Node 22–24 e execute `npm ci`, `npm run dev` e `npm run build`. Configure localmente as variáveis públicas `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` e `NEXT_PUBLIC_CAKTO_CHECKOUT_URL`. Segredos ficam em `.env.local` ou nas configurações do ambiente, nunca no Git.
 
-Os testes de regressão ficam em `tests/` e podem ser executados com `node --test tests/*.test.mjs` no Node 24. Os testes SQL usam transações com rollback e devem ser executados após as migrações correspondentes, em uma sessão de administração do banco.
+A compilação executa os testes automatizados antes de gerar a aplicação. Os testes de regressão ficam em `tests/` e podem ser executados com `node --test tests/*.test.mjs` no Node 24. Os testes SQL usam transações com rollback e devem ser executados após as migrações correspondentes, em uma sessão de administração do banco.
 
 ## Recuperação de senha
 
@@ -59,3 +59,17 @@ O cliente usa um único menu: Visão geral, Minha página, Botões, Resultados e
 - Botões usa um único formulário para criar e editar. A ordem é salva pelo RPC `reorder_company_actions`, com validação completa da empresa e dos IDs. As sugestões de modelo ignoram tipos já configurados e contatos diretos.
 - Compartilhar é o único lugar para copiar o endereço NFC, gerar o QR da página e enviar/baixar imagens de PIX e Wi-Fi. A rota antiga `/dashboard/qr-codes` redireciona para `/dashboard/nfc#qr-codes`.
 - Resultados compara períodos de 7, 30 ou 90 dias e acompanha contatos diretos apenas por categoria, sem armazenar números de telefone. A média de cliques por visita não deve ser interpretada como taxa de conversão.
+
+## Controles de acesso e revisão de segurança
+
+A aprovação e o login não dão direito de uso gratuito. Editor, botões, resultados e compartilhamento exigem aprovação vinculada à empresa e assinatura `active` com `expires_at` futuro e não nulo. O cliente sem assinatura acessa somente a situação da conta e a regularização. O servidor e as políticas RLS aplicam a mesma regra, inclusive nas chamadas diretas à API, nos arquivos e na ordenação de botões.
+
+Novos cadastros precisam confirmar o e-mail. As solicitações e o primeiro vínculo de cobrança validam o e-mail confirmado do usuário Auth, sem confiar em `user_metadata`. A página pública usa um cliente anônimo do Supabase; os cookies do proprietário não liberam uma página vencida.
+
+Os ativos de apresentação permanecem em um bucket público para servir as imagens publicadas em URLs conhecidas. A listagem de arquivos é restrita à empresa paga e aos administradores; os uploads e alterações seguem a assinatura e o papel do usuário. Não envie arquivos privados ou documentos para esse bucket.
+
+O webhook processa o pagamento e o ledger na mesma transação; retentativas não duplicam períodos. O período mensal é limitado, e estornos de pedidos anteriores não removem um mês pago por outro pedido. Webhooks, analytics e atualização de senha limitam o corpo durante a leitura.
+
+A regressão SQL em `tests/paid-entitlements.sql` cobre acesso gratuito, isolamento de empresas, papéis e armazenamento. `tests/request-identity.sql` cobre e-mails não confirmados ou de terceiros. `tests/cakto-order-security.sql` cobre pagamentos, períodos e estornos. Os testes usam transações com rollback; nunca libere assinaturas fictícias persistentes em produção.
+
+Configurações que dependem do proprietário no Supabase: validar remetente/SMTP e entrega real dos e-mails; habilitar [proteção contra senhas vazadas](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection) conforme disponibilidade do plano. Autenticação de dois fatores na conta administrativa também é recomendada. Nenhuma auditoria elimina todo o risco; repita as verificações em mudanças de autorização, banco ou cobrança.

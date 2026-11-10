@@ -9,7 +9,7 @@ test("admin subscription status respects actual expiry at the boundary without r
   assert.equal(subscriptionStatus(subscription, now), "active");
   assert.equal(subscriptionStatus({ ...subscription, expires_at: new Date(now).toISOString() }, now), "expired");
   assert.equal(subscriptionStatus({ ...subscription, expires_at: "invalid" }, now), "expired");
-  assert.equal(subscriptionStatus({ ...subscription, expires_at: null }, now), "active");
+  assert.equal(subscriptionStatus({ ...subscription, expires_at: null }, now), "expired");
   assert.equal(subscriptionStatus({ ...subscription, status: "canceled" }, now), "canceled");
   assert.equal(subscriptionStatus(null, now), "pending");
 });

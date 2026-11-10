@@ -19,6 +19,7 @@ export default function Login() {
     const reason = params.get("auth_error");
     setPasswordUpdated(params.get("password") === "updated");
     if (reason === "callback") setError("O link de confirmação expirou ou é inválido. Entre com seu e-mail e senha ou solicite um novo link.");
+    if (reason === "confirm") setError("Confirme seu e-mail pelo link enviado no cadastro antes de acessar o painel. Confira também a pasta de spam.");
     if (reason === "signout") setError("Não foi possível encerrar sua sessão. Tente novamente.");
   }, []);
   async function go(e:React.FormEvent) {
@@ -28,7 +29,7 @@ export default function Login() {
     try {
       const { error } = await createClient().auth.signInWithPassword({ email: email.trim(), password });
       if (error) {
-        setError(error.code === "invalid_credentials" ? "E-mail ou senha incorretos." : error.code === "email_not_confirmed" ? "Confirme seu e-mail antes de entrar. Verifique também a caixa de spam." : error.message);
+        setError(error.code === "invalid_credentials" ? "E-mail ou senha incorretos." : error.code === "email_not_confirmed" ? "Confirme seu e-mail antes de entrar. Verifique também a caixa de spam." : error.status === 429 ? "Muitas tentativas. Aguarde alguns minutos e tente novamente." : "Não foi possível entrar agora. Tente novamente.");
         return;
       }
       const next = safeAuthPath(new URLSearchParams(window.location.search).get("next"));
@@ -48,8 +49,8 @@ export default function Login() {
           <span className="auth-premium-icon"><LockKeyhole size={22}/></span>
           <div className="section-kicker">ÁREA DO CLIENTE</div>
           <h1>Bem-vindo de volta.</h1><p>Acesse seu espaço para gerenciar sua presença digital.</p>
-          <label>E-mail<input type="email" autoComplete="email" placeholder="voce@empresa.com" value={email} onChange={e=>setEmail(e.target.value)} required/></label>
-          <label>Senha<input type="password" autoComplete="current-password" placeholder="Sua senha" value={password} onChange={e=>setPassword(e.target.value)} required/></label>
+          <label>E-mail<input type="email" maxLength={320} autoComplete="email" placeholder="voce@empresa.com" value={email} onChange={e=>setEmail(e.target.value)} required/></label>
+          <label>Senha<input type="password" maxLength={128} autoComplete="current-password" placeholder="Sua senha" value={password} onChange={e=>setPassword(e.target.value)} required/></label>
           <Link href="/recuperar-senha" className="auth-flow-forgot">Esqueci minha senha</Link>
           {passwordUpdated && <div className="auth-flow-success" role="status">Senha atualizada. Entre com sua nova senha.</div>}
           {error&&<div className="error" role="alert">{error}</div>}

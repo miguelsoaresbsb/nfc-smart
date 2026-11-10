@@ -12,17 +12,22 @@ export default async function Dashboard() {
   const access = await getAuthorizedAccess();
   if (access.isAdmin) redirect("/admin");
   const company = access.company;
+  if (!access.hasPaidAccess) {
+    return <main className="premium-shell dashboard-page"><section className="subpage">
+      <div className="section-kicker">SITUAÇÃO DA CONTA</div>
+      <div className="hub-title"><div><h1>Olá, <span>{company.name}.</span></h1><p>Sua empresa foi aprovada. Ative ou regularize a assinatura para usar o NFC Smart.</p></div></div>
+      <SetupProgress step={2}/>
+      <section className="overview-next"><div><small>ASSINATURA NECESSÁRIA</small><h2>Libere os recursos da sua página</h2><p>A edição, os botões, os resultados, os QR Codes e a publicação ficam disponíveis somente durante o período pago.</p></div><Link href="/dashboard/subscription" className="premium-btn premium-btn-dark">Ver assinatura<ArrowUpRight size={15}/></Link></section>
+    </section></main>;
+  }
   const sb = await createClient();
   const { since, until } = analyticsWindow();
-  const [subscriptionResult, buttonsResult, viewsResult, clicksResult] = await Promise.all([
-    sb.from("subscriptions").select("status,expires_at").eq("company_id", company.id).maybeSingle(),
+  const [buttonsResult, viewsResult, clicksResult] = await Promise.all([
     sb.from("actions").select("id", { count: "exact", head: true }).eq("company_id", company.id).eq("enabled", true),
     sb.from("analytics_events").select("id", { count: "exact", head: true }).eq("company_id", company.id).eq("event_type", "page_view").gte("created_at", since).lte("created_at", until),
     sb.from("analytics_events").select("id", { count: "exact", head: true }).eq("company_id", company.id).eq("event_type", "action_click").gte("created_at", since).lte("created_at", until),
   ]);
-  if (subscriptionResult.error) throw new Error("Não foi possível verificar a situação da sua página.");
-  const subscription = subscriptionResult.data;
-  const active = subscription?.status === "active" && (!subscription.expires_at || new Date(subscription.expires_at).getTime() > Date.now());
+  const active = access.hasPaidAccess;
   const directContacts = Number(Boolean(company.phone_enabled && company.phone?.trim())) + Number(Boolean(company.whatsapp_enabled && company.whatsapp?.trim()));
   const buttons = buttonsResult.error ? null : (buttonsResult.count || 0) + directContacts;
   const readyIdentity = Boolean(company.description?.trim());

@@ -1,7 +1,7 @@
 BEGIN;
 -- Use existing accounts only inside a rolled-back transaction.
 INSERT INTO public.access_requests(id,name,email,company_name,user_id,status)
-SELECT 'a9ab0983-0476-48da-92fa-41d20c64f001', 'Approval test', 'approval@example.invalid', c.name, u.id, 'pending'
+SELECT 'a9ab0983-0476-48da-92fa-41d20c64f001', 'Approval test', u.email, c.name, u.id, 'pending'
 FROM public.companies c CROSS JOIN auth.users u
 WHERE NOT EXISTS (SELECT 1 FROM public.platform_admins a WHERE a.user_id=u.id)
 ORDER BY c.id,u.id LIMIT 1;

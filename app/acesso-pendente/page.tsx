@@ -29,7 +29,7 @@ export default async function AccessPending() {
           <SetupProgress step={user ? 1 : 0} rejected={rejected}/>
           <h1>{!user ? "Acompanhe seu cadastro" : rejected ? "Solicitação não aprovada" : "Aguardando autorização"}</h1>
           <p>{!user ? "Entre com o e-mail e a senha do cadastro para consultar sua solicitação e acompanhar as próximas etapas." : rejected ? "Sua solicitação foi analisada e não foi aprovada. Entre em contato com a equipe do NFC Smart para mais informações." : "O administrador do NFC Smart precisa autorizar seu acesso antes que você possa entrar no painel."}</p>
-          {user && !rejected && <div className="auth-flow-context"><b>O que acontece depois?</b>Assim que sua empresa for aprovada, o painel libera a personalização. A assinatura vigente publica a página no endereço da sua plaquinha.</div>}
+          {user && !rejected && <div className="auth-flow-context"><b>O que acontece depois?</b>Assim que sua empresa for aprovada, você poderá contratar a assinatura. O pagamento libera a personalização e a página no endereço da sua plaquinha.</div>}
           <Link href={user ? "/dashboard" : "/login"} className="premium-btn premium-btn-dark">{user ? "Verificar liberação" : "Ir para o login"}</Link>
           {user && <form action="/auth/signout" method="post"><button className="premium-btn" type="submit">Sair da conta</button></form>}
         </div>
