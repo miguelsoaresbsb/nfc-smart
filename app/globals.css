@@ -164,6 +164,8 @@
 @media(max-width:650px){.admin-request{align-items:flex-start}.admin-request-status{margin-left:52px}.admin-request-actions{width:100%;margin-left:52px}.admin-company-row{flex-wrap:wrap}.admin-company-row code{order:3;width:100%;margin-left:44px}}
 
 
+.bio-grid .bio-action b{overflow-wrap:anywhere}
+
 /* Premium marketing and authentication */
 .landing-premium{background:radial-gradient(ellipse at 12% 0%,#fff 0,#f7f7f3 43%,#ededE7 100%);padding-bottom:30px}
 .landing-nav-actions{display:flex;gap:9px;align-items:center}
@@ -178,7 +180,7 @@
 .landing-trust span{display:flex;align-items:center;gap:5px;font-size:10px;color:#777}
 .landing-trust svg{color:#222}
 .landing-visual{position:relative;min-height:520px;display:grid;place-items:center}
-.landing-orbit{position:absolute;border:1px solid #1111;border-radius:50%;aspect-ratio:1}
+.landing-orbit{position:absolute;max-width:100%;border:1px solid #1111;border-radius:50%;aspect-ratio:1}
 .orbit-a{width:440px}.orbit-b{width:350px;border-style:dashed}
 .landing-phone{z-index:1;width:260px;padding:9px 15px 18px;border:1px solid #d6d6cf;border-radius:34px;background:#fff;box-shadow:0 35px 100px #0002;text-align:center;transform:rotate(3deg)}
 .landing-phone-notch{width:74px;height:15px;background:#111;border-radius:0 0 12px 12px;margin:-9px auto 12px}
