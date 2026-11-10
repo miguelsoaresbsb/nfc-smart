@@ -1,107 +1,54 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { ArrowUpRight, BarChart3, CheckCircle2, Link2, Palette, Send } from "lucide-react";
+import { getAuthorizedAccess } from "@/lib/auth-guard";
 import { createClient } from "@/lib/supabase-server";
-import {
-  ArrowUpRight, BarChart3, CreditCard, ExternalLink, Image,
-  LayoutDashboard, Link2, QrCode, Settings2, ShieldCheck, Wifi,
-} from "lucide-react";
-import PublicUrl from "./PublicUrl";
+import SetupProgress from "@/app/components/SetupProgress";
+import { analyticsWindow } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
-const modules = [
-  { href: "/dashboard/editor", title: "Identidade visual", description: "Foto, capa, cores e apresentação.", icon: Image },
-  { href: "/dashboard/actions", title: "Ações e links", description: "WhatsApp, Instagram, PIX, Google e Wi-Fi.", icon: Link2 },
-  { href: "/dashboard/qr-codes", title: "Biblioteca de QR Codes", description: "Organize e associe seus códigos.", icon: QrCode },
-  { href: "/dashboard/analytics", title: "Analytics", description: "Entenda visitas e interações.", icon: BarChart3 },
-  { href: "/dashboard/nfc", title: "Sua experiência NFC", description: "Copie o endereço da sua página.", icon: Wifi },
-  { href: "/dashboard/subscription", title: "Assinatura", description: "Consulte o status do seu plano.", icon: CreditCard },
-];
-
 export default async function Dashboard() {
+  const access = await getAuthorizedAccess();
+  if (access.isAdmin) redirect("/admin");
+  const company = access.company;
   const sb = await createClient();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) redirect("/login");
+  const { since, until } = analyticsWindow();
+  const [subscriptionResult, buttonsResult, viewsResult, clicksResult] = await Promise.all([
+    sb.from("subscriptions").select("status,expires_at").eq("company_id", company.id).maybeSingle(),
+    sb.from("actions").select("id", { count: "exact", head: true }).eq("company_id", company.id).eq("enabled", true),
+    sb.from("analytics_events").select("id", { count: "exact", head: true }).eq("company_id", company.id).eq("event_type", "page_view").gte("created_at", since).lte("created_at", until),
+    sb.from("analytics_events").select("id", { count: "exact", head: true }).eq("company_id", company.id).eq("event_type", "action_click").gte("created_at", since).lte("created_at", until),
+  ]);
+  if (subscriptionResult.error) throw new Error("Não foi possível verificar a situação da sua página.");
+  const subscription = subscriptionResult.data;
+  const active = subscription?.status === "active" && (!subscription.expires_at || new Date(subscription.expires_at).getTime() > Date.now());
+  const directContacts = Number(Boolean(company.phone_enabled && company.phone?.trim())) + Number(Boolean(company.whatsapp_enabled && company.whatsapp?.trim()));
+  const buttons = buttonsResult.error ? null : (buttonsResult.count || 0) + directContacts;
+  const readyIdentity = Boolean(company.description?.trim());
+  const next = !readyIdentity
+    ? { title: "Dê a sua cara à página", text: "Comece com um modelo do seu segmento e personalize as informações da empresa.", href: "/dashboard/editor", label: "Personalizar minha página" }
+    : buttons === 0 || buttons === null
+      ? { title: "Adicione seu primeiro botão", text: "Escolha o que seu cliente deve fazer: falar com você, ver seus produtos ou encontrar sua empresa.", href: "/dashboard/actions", label: "Configurar botões" }
+      : !active
+        ? { title: "Ative sua página para os clientes", text: "Sua empresa já foi aprovada. Confira a assinatura para liberar o acesso público.", href: "/dashboard/subscription", label: "Ver assinatura" }
+        : { title: "Tudo pronto para compartilhar", text: "Copie seu endereço permanente ou baixe o QR Code para receber seus próximos contatos.", href: "/dashboard/nfc", label: "Compartilhar minha página" };
+  const formatted = (result: { error: unknown; count: number | null }) => result.error ? "—" : (result.count || 0).toLocaleString("pt-BR");
 
-  const { data: admin } = await sb
-    .from("platform_admins")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (admin) {
-    return (
-      <main className="premium-shell dashboard-page">
-        <header className="premium-nav">
-          <Link href="/dashboard" className="brand"><span className="brand-mark"><Wifi size={17}/></span><span>NFC<span>SMART</span></span></Link>
-          <Link className="premium-btn" href="/admin"><ShieldCheck size={15}/> Painel Master <ArrowUpRight size={14}/></Link>
-        </header>
-        <section className="subpage">
-          <div className="section-kicker"><span className="live-dot"/> CENTRAL DE CONTROLE</div>
-          <div className="hub-title"><div><h1>Visão geral. <span>Controle total.</span></h1><p>Gerencie solicitações, empresas e assinaturas em um único lugar.</p></div></div>
-          <Link href="/admin" className="dashboard-feature"><span className="dashboard-feature-icon"><ShieldCheck size={23}/></span><span><b>Administração da plataforma</b><small>Autorize empresas e acompanhe a operação do NFC Smart.</small></span><ArrowUpRight size={19}/></Link>
-        </section>
-      </main>
-    );
-  }
-
-  const { data: member } = await sb
-    .from("company_members")
-    .select("company_id,companies(id,name,slug)")
-    .eq("user_id", user.id)
-    .limit(1)
-    .maybeSingle();
-
-  if (!member) redirect("/acesso-pendente");
-
-  const company: any = Array.isArray(member.companies) ? member.companies[0] : member.companies;
-  if (!company) redirect("/acesso-pendente");
-
-  const { data: subscription } = await sb
-    .from("subscriptions")
-    .select("status,expires_at")
-    .eq("company_id", company.id)
-    .maybeSingle();
-
-  const active = subscription?.status === "active" &&
-    (!subscription.expires_at || new Date(subscription.expires_at) > new Date());
-
-  return (
-    <main className="premium-shell dashboard-page">
-      <header className="premium-nav">
-        <Link href="/dashboard" className="brand"><span className="brand-mark"><Wifi size={17}/></span><span>NFC<span>SMART</span></span></Link>
-        <div className="dashboard-nav-actions">
-          <Link href={"/p/" + company.slug} target="_blank" className="premium-btn"><ExternalLink size={15}/> Ver página pública</Link>
-          <Link href="/dashboard/editor" className="premium-btn premium-btn-dark"><Settings2 size={15}/> Personalizar</Link>
-        </div>
-      </header>
-
-      <section className="subpage dashboard-content">
-        <div className="section-kicker"><span className="live-dot"/> ESPAÇO DA EMPRESA</div>
-        <div className="hub-title dashboard-heading">
-          <div><h1>Olá, <span>{company.name}.</span></h1><p>Seu perfil digital, suas conexões e seus resultados em um só lugar.</p></div>
-          <span className={"dashboard-status " + (active ? "is-active" : "is-pending")}><i/> {active ? "PÁGINA ATIVA" : "ASSINATURA PENDENTE"}</span>
-        </div>
-
-        {!active && (
-          <div className="dashboard-alert">
-            <div><b>Sua página pública ainda não está ativa.</b><p>Conclua ou regularize sua assinatura para liberar seu perfil aos visitantes.</p></div>
-            <Link href="/dashboard/subscription" className="premium-btn premium-btn-dark">Ver assinatura <ArrowUpRight size={15}/></Link>
-          </div>
-        )}
-
-        <PublicUrl slug={company.slug} />
-
-        <div className="dashboard-section-heading"><div><span>FERRAMENTAS</span><h2>Gerencie sua presença digital</h2></div><span>6 módulos</span></div>
-        <div className="dashboard-module-grid">
-          {modules.map(({href,title,description,icon:Icon}, index) => (
-            <Link href={href} className="dashboard-module" key={href}>
-              <div className="dashboard-module-top"><span className="dashboard-module-icon"><Icon size={19}/></span><span className="dashboard-module-number">0{index+1}</span></div>
-              <b>{title}</b><p>{description}</p><span className="dashboard-module-link">Abrir módulo <ArrowUpRight size={14}/></span>
-            </Link>
-          ))}
-        </div>
-      </section>
-    </main>
-  );
+  return <main className="premium-shell dashboard-page"><section className="subpage">
+    <div className="section-kicker">VISÃO GERAL</div>
+    <div className="hub-title dashboard-heading"><div><h1>Olá, <span>{company.name}.</span></h1><p>Seu negócio pronto para se conectar, em um só lugar.</p></div><span className={"dashboard-status " + (active ? "is-active" : "is-pending")}><i/>{active ? "PÁGINA ATIVA" : "AGUARDANDO ASSINATURA"}</span></div>
+    <SetupProgress step={active ? 3 : 2} complete={active}/>
+    <section className="overview-next" aria-label="Próximo passo"><div><small>{active && readyIdentity && buttons ? "SUA PÁGINA ESTÁ NO AR" : "SEU PRÓXIMO PASSO"}</small><h2>{next.title}</h2><p>{next.text}</p></div><Link href={next.href} className="premium-btn premium-btn-dark">{next.label}<ArrowUpRight size={15}/></Link></section>
+    <div className="dashboard-section-heading"><div><span>ACOMPANHAMENTO</span><h2>Um olhar sobre os últimos 30 dias</h2></div></div>
+    <div className="overview-stats"><article className="overview-stat"><span>Visitas à página</span><strong>{formatted(viewsResult)}</strong><small>Aberturas da sua página pública</small></article><article className="overview-stat"><span>Interações com botões</span><strong>{formatted(clicksResult)}</strong><small>Atalhos acionados pelos visitantes</small></article><article className="overview-stat"><span>Botões e contatos ativos</span><strong>{buttons === null ? "—" : buttons}</strong><small>Atalhos disponíveis na página</small></article></div>
+    <Link href="/dashboard/analytics" className="overview-results-link"><BarChart3 size={15}/>Ver resultados e evolução<ArrowUpRight size={14}/></Link>
+    <div className="dashboard-section-heading"><div><span>GERENCIE SUA PRESENÇA</span><h2>O essencial, sempre à mão</h2></div></div>
+    <div className="overview-tools">
+      <Link className="overview-tool" href="/dashboard/editor"><Palette size={23}/><strong>Minha página</strong><p>Modelos por segmento, identidade visual e contatos.</p><span>Personalizar<ArrowUpRight size={13}/></span></Link>
+      <Link className="overview-tool" href="/dashboard/actions"><Link2 size={23}/><strong>Botões</strong><p>Edite os atalhos e organize a ordem em que aparecem.</p><span>Gerenciar botões<ArrowUpRight size={13}/></span></Link>
+      <Link className="overview-tool" href="/dashboard/nfc"><Send size={23}/><strong>Compartilhar</strong><p>Endereço permanente da plaquinha e biblioteca de QR Codes.</p><span>Abrir compartilhamento<ArrowUpRight size={13}/></span></Link>
+    </div>
+    {active && <p className="analytics-note"><CheckCircle2 size={18}/> As alterações salvas aparecem na sua página sem precisar regravar a plaquinha.</p>}
+  </section></main>;
 }

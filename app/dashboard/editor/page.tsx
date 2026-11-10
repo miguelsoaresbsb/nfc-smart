@@ -3,15 +3,17 @@
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, ExternalLink, ImagePlus, LoaderCircle, Palette, Save, Smartphone, Wifi } from "lucide-react";
+import { ExternalLink, ImagePlus, LoaderCircle, Palette, Save, Smartphone, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
+import { applySegmentDraft, getSegmentTemplate, missingTemplateActions, segmentTemplates } from "@/lib/segment-templates";
+import "../segment-templates.css";
 
 type FormState = {
   name: string; description: string; bg: string; primary: string; text: string;
   secondary: string; buttonText: string; logo: string; cover: string;
   phone: string; whatsapp: string; phoneEnabled: boolean; whatsappEnabled: boolean;
 };
-type PreviewAction = { id: string; label: string; enabled: boolean };
+type PreviewAction = { id: string; type: string; label: string; enabled: boolean };
 
 const initial: FormState = {
   name: "", description: "", bg: "#f6f6f3", primary: "#111111", text: "#111111",
@@ -19,20 +21,18 @@ const initial: FormState = {
   phone: "", whatsapp: "", phoneEnabled: true, whatsappEnabled: true,
 };
 
-const pageTemplates = [
-  { id: "clean", name: "Minimalista", note: "Claro e sofisticado", colors: { bg: "#F7F7F4", primary: "#171717", text: "#171717", secondary: "#737373", buttonText: "#FFFFFF" } },
-  { id: "dark", name: "Elegante", note: "Escuro e premium", colors: { bg: "#111318", primary: "#D6B77A", text: "#F7F4ED", secondary: "#B5B1A8", buttonText: "#171717" } },
-  { id: "nature", name: "Natural", note: "Leve e acolhedor", colors: { bg: "#F1F4EC", primary: "#49634D", text: "#26382A", secondary: "#718071", buttonText: "#FFFFFF" } },
-  { id: "warm", name: "Vibrante", note: "Destaque sua marca", colors: { bg: "#FFF7F0", primary: "#E66B3D", text: "#29201D", secondary: "#806D65", buttonText: "#FFFFFF" } },
-];
-
 export default function Editor() {
   const sb = useMemo(() => createClient(), []);
   const router = useRouter();
   const [id, setId] = useState("");
+  const [canEdit, setCanEdit] = useState(false);
   const [f, setF] = useState<FormState>(initial);
   const [actions, setActions] = useState<PreviewAction[]>([]);
+  const [actionsReady, setActionsReady] = useState(false);
   const [msg, setMsg] = useState("");
+  const [savedState, setSavedState] = useState("");
+  const [selectedSegment, setSelectedSegment] = useState("");
+  const [replaceDescription, setReplaceDescription] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<"logo" | "cover" | "">("");
@@ -43,12 +43,12 @@ export default function Editor() {
       const { data: { user } } = await sb.auth.getUser();
       if (!user) { router.push("/login"); return; }
       const { data: member, error: memberError } = await sb
-        .from("company_members").select("company_id").eq("user_id", user.id).limit(1).maybeSingle();
+        .from("company_members").select("company_id,role").eq("user_id", user.id).limit(1).maybeSingle();
       if (memberError || !member) { router.push("/acesso-pendente"); return; }
       const companyId = member.company_id;
       const [companyResult, actionResult] = await Promise.all([
         sb.from("companies").select("*").eq("id", companyId).single(),
-        sb.from("actions").select("id,label,enabled").eq("company_id", companyId).order("position"),
+        sb.from("actions").select("id,type,label,enabled").eq("company_id", companyId).order("position"),
       ]);
       if (!alive) return;
       if (companyResult.error || !companyResult.data) {
@@ -58,64 +58,91 @@ export default function Editor() {
       }
       const c = companyResult.data;
       setId(companyId);
-      setF({
+      setCanEdit(["owner", "admin", "editor"].includes(member.role));
+      const loadedForm: FormState = {
         name: c.name || "", description: c.description || "",
         bg: c.background_color || "#f6f6f3", primary: c.primary_color || "#111111",
         text: c.text_color || "#111111", secondary: c.secondary_text_color || "#777777",
         buttonText: c.button_text_color || "#ffffff", logo: c.logo_url || "",
         cover: c.cover_url || "", phone: c.phone || "", whatsapp: c.whatsapp || "",
         phoneEnabled: c.phone_enabled !== false, whatsappEnabled: c.whatsapp_enabled !== false,
-      });
+      };
+      setF(loadedForm);
+      const matchingTemplate = segmentTemplates.find(template => Object.entries(template.colors)
+        .every(([key, value]) => loadedForm[key as keyof FormState].toString().toLowerCase() === value.toLowerCase()));
+      setSelectedSegment(matchingTemplate?.id || "");
+      setSavedState(JSON.stringify(loadedForm));
       setActions((actionResult.data || []) as PreviewAction[]);
+      setActionsReady(!actionResult.error);
+      if (actionResult.error) setMsg("Seu perfil foi carregado, mas a lista de botões está indisponível. Atualize a página antes de configurar os botões.");
       setLoading(false);
-    })();
+    })().catch(() => {
+      if (alive) { setMsg("Não foi possível carregar seu perfil. Atualize a página para tentar novamente."); setLoading(false); }
+    });
     return () => { alive = false; };
   }, [router, sb]);
 
   async function upload(file: File | undefined, key: "logo" | "cover") {
-    if (!file || !id || uploading || saving) return;
+    if (!file || !id || uploading || saving || !canEdit) return;
     setMsg("");
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
       setMsg("Formato inválido. Use PNG, JPG ou WEBP."); return;
     }
-    if (file.size > 6 * 1024 * 1024) {
-      setMsg("A imagem deve ter no máximo 6 MB."); return;
-    }
+    if (file.size > 6 * 1024 * 1024) { setMsg("A imagem deve ter no máximo 6 MB."); return; }
     setUploading(key);
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(-80);
-    const path = id + "/" + key + "-" + crypto.randomUUID() + "-" + safeName;
-    const result = await sb.storage.from("company-assets").upload(path, file, {
-      upsert: false, contentType: file.type, cacheControl: "3600",
-    });
-    if (result.error) setMsg(result.error.message);
-    else {
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(-80);
+      const path = id + "/" + key + "-" + crypto.randomUUID() + "-" + safeName;
+      const result = await sb.storage.from("company-assets").upload(path, file, {
+        upsert: false, contentType: file.type, cacheControl: "3600",
+      });
+      if (result.error) throw new Error(result.error.message);
       const url = sb.storage.from("company-assets").getPublicUrl(path).data.publicUrl;
-      setF((current) => ({ ...current, [key]: url }));
+      setF(current => ({ ...current, [key]: url }));
       setMsg("Imagem enviada. Salve as alterações para publicar.");
-    }
-    setUploading("");
+    } catch (error) {
+      setMsg(error instanceof Error ? error.message : "Não foi possível enviar a imagem. Tente novamente.");
+    } finally { setUploading(""); }
   }
 
   async function save() {
-    if (!id || saving || uploading) return;
+    if (!id || saving || uploading || !canEdit) return;
     if (!f.name.trim()) { setMsg("Informe o nome da empresa."); return; }
     setSaving(true); setMsg("");
-    const company = await sb.from("companies").update({
-      name: f.name.trim(), description: f.description.trim(),
-      background_color: f.bg, primary_color: f.primary, text_color: f.text,
-      secondary_text_color: f.secondary, button_text_color: f.buttonText,
-      logo_url: f.logo || null, cover_url: f.cover || null,
-      phone: f.phone.trim() || null, whatsapp: f.whatsapp.trim() || null,
-      phone_enabled: f.phoneEnabled, whatsapp_enabled: f.whatsappEnabled,
-      updated_at: new Date().toISOString(),
-    }).eq("id", id).select("id").single();
-    if (company.error) { setMsg(company.error.message); setSaving(false); return; }
-    const profile = await sb.from("profiles").upsert({
-      company_id: id, display_name: f.name.trim(), tagline: f.description.trim() || null, avatar_url: f.logo || null,
-      secondary_image_url: f.cover || null, updated_at: new Date().toISOString(),
-    }, { onConflict: "company_id" });
-    setMsg(profile.error ? profile.error.message : "Alterações salvas com sucesso.");
-    setSaving(false);
+    const draft = { ...f };
+    try {
+      const company = await sb.from("companies").update({
+        name: draft.name.trim(), description: draft.description.trim(),
+        background_color: draft.bg, primary_color: draft.primary, text_color: draft.text,
+        secondary_text_color: draft.secondary, button_text_color: draft.buttonText,
+        logo_url: draft.logo || null, cover_url: draft.cover || null,
+        phone: draft.phone.trim() || null, whatsapp: draft.whatsapp.trim() || null,
+        phone_enabled: draft.phoneEnabled, whatsapp_enabled: draft.whatsappEnabled,
+        updated_at: new Date().toISOString(),
+      }).eq("id", id).select("id").single();
+      if (company.error) throw new Error(company.error.message);
+      const profile = await sb.from("profiles").upsert({
+        company_id: id, display_name: draft.name.trim(), tagline: draft.description.trim() || null,
+        avatar_url: draft.logo || null, secondary_image_url: draft.cover || null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "company_id" });
+      if (profile.error) throw new Error("Os dados da empresa foram salvos, mas o perfil não foi atualizado. Tente salvar novamente. " + profile.error.message);
+      setSavedState(JSON.stringify(draft));
+      setMsg("Alterações salvas. Sua página pública está atualizada.");
+    } catch (error) {
+      setMsg(error instanceof Error ? error.message : "Não foi possível salvar. Suas alterações continuam na prévia para tentar novamente.");
+    } finally { setSaving(false); }
+  }
+
+  const selectedTemplate = getSegmentTemplate(selectedSegment);
+  const suggestedActions = selectedTemplate && actionsReady ? missingTemplateActions(selectedTemplate, actions, f) : [];
+  const dirty = Boolean(savedState && savedState !== JSON.stringify(f));
+
+  function applyTemplate() {
+    if (!selectedTemplate || saving || uploading || !canEdit) return;
+    setF(current => applySegmentDraft(current, selectedTemplate, replaceDescription));
+    setReplaceDescription(false);
+    setMsg("Modelo " + selectedTemplate.name + " aplicado à prévia. Revise e salve para publicar. Seus contatos, imagens e botões foram preservados.");
   }
 
   const set = (key: keyof FormState, value: string | boolean) =>
@@ -123,38 +150,49 @@ export default function Editor() {
 
   return (
     <main className="premium-shell editor-premium">
-      <header className="premium-nav">
-        <Link href="/dashboard" className="brand"><span className="brand-mark"><Wifi size={17}/></span><span>NFC<span>SMART</span></span></Link>
-        <div className="editor-nav-actions">
-          <Link href="/dashboard" className="premium-btn"><ArrowLeft size={15}/> Painel</Link>
-          <button className="premium-btn premium-btn-dark" onClick={save} disabled={saving || loading || !!uploading || !id}>
-            {saving ? <LoaderCircle size={15} className="spin"/> : <Save size={15}/>} {saving ? "Salvando..." : "Salvar alterações"}
-          </button>
-        </div>
-      </header>
+
 
       <section className="subpage editor-subpage">
         <div className="section-kicker"><span className="live-dot"/> PERSONALIZAÇÃO</div>
-        <div className="hub-title"><div><h1>Sua marca. <span>Seu primeiro impacto.</span></h1><p>Configure como sua empresa será apresentada quando alguém aproximar o celular da sua TAG ou ler seu QR Code.</p></div></div>
+        <div className="hub-title"><div><h1>Minha página</h1><p>Escolha um modelo, ajuste sua identidade e acompanhe a prévia antes de publicar.</p></div></div>
+        <div className="page-toolbar editor-toolbar">
+          <span className="editor-save-state" role="status">{loading ? "Carregando sua página…" : !id ? "Dados indisponíveis" : uploading ? "Enviando imagem…" : dirty ? "Alterações não salvas" : "Tudo salvo"}</span>
+          <a className="premium-btn" href="#editor-preview"><Smartphone size={15}/> Ver prévia</a>
+          <button className="premium-btn premium-btn-dark" onClick={save} disabled={saving || loading || !!uploading || !id || !dirty || !canEdit}>
+            {saving ? <LoaderCircle size={15} className="spin"/> : <Save size={15}/>} {saving ? "Salvando…" : "Salvar alterações"}
+          </button>
+        </div>
+        {!loading && id && !canEdit && <p className="notice">Seu acesso permite consultar esta página. Peça a um administrador da empresa para editar.</p>}
         {msg && <div className="editor-message" role="status">{msg}</div>}
         {loading ? <div className="editor-loading"><LoaderCircle className="spin"/> Carregando seu perfil...</div> : (
           <div className="editor-premium-layout">
-            <div className="editor-controls">
-              <section className="editor-section">
-                <div className="editor-section-heading"><span>00</span><div><b>Modelos de página</b><small>Escolha uma base visual. Você pode ajustar cada cor depois.</small></div></div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(145px,1fr))",gap:10}}>
-                  {pageTemplates.map((template) => (
-                    <button key={template.id} type="button" onClick={() => setF(current => ({...current,...template.colors}))}
-                      style={{textAlign:"left",padding:12,border:"1px solid #e7e7e2",borderRadius:14,background:"#fff",display:"grid",gap:9}}>
-                      <span style={{height:54,borderRadius:9,background:template.colors.bg,border:"1px solid #e7e7e2",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
-                        <i style={{width:25,height:7,borderRadius:8,background:template.colors.primary}}/>
-                        <i style={{width:35,height:7,borderRadius:8,background:template.colors.text,opacity:.75}}/>
-                        <i style={{width:19,height:19,borderRadius:6,background:template.colors.primary}}/>
-                      </span>
-                      <span style={{display:"grid",gap:2}}><b style={{fontSize:13,color:"#171717"}}>{template.name}</b><small style={{fontSize:11,color:"#777"}}>{template.note}</small></span>
-                    </button>
-                  ))}
-                </div>
+            <fieldset className="editor-controls" disabled={!canEdit || saving || !!uploading}>
+              <section className="editor-section segment-section" id="modelos">
+                <div className="editor-section-heading"><span><Sparkles size={17}/></span><div><b>Comece com um modelo</b><small>Uma base de cores e apresentação para o seu segmento.</small></div></div>
+                <label className="premium-field">Modelo por segmento
+                  <select value={selectedSegment} onChange={event => { setSelectedSegment(event.target.value); setReplaceDescription(false); }} disabled={saving || !!uploading}>
+                    <option value="">Personalizado · manter minha página</option>
+                    {segmentTemplates.map(template => <option value={template.id} key={template.id}>{template.name}</option>)}
+                  </select>
+                </label>
+                {selectedTemplate ? <div className="segment-template-preview">
+                  <div className="segment-template-sample" style={{background:selectedTemplate.colors.bg,color:selectedTemplate.colors.text}}>
+                    <span className="segment-sample-avatar" style={{background:selectedTemplate.colors.primary,color:selectedTemplate.colors.buttonText}}>{f.name.slice(0,1).toUpperCase() || "N"}</span>
+                    <strong>{f.name || "Sua empresa"}</strong>
+                    <p>{selectedTemplate.description}</p>
+                    <span className="segment-sample-button" style={{background:selectedTemplate.colors.primary,color:selectedTemplate.colors.buttonText}}>{selectedTemplate.suggestedActions[0].label}</span>
+                    <span className="segment-sample-caption">Exemplo do modelo · nenhum botão é criado automaticamente</span>
+                  </div>
+                  <p className="segment-summary">{selectedTemplate.summary} Você poderá personalizar todas as cores abaixo.</p>
+                  {f.description.trim() && <label className="segment-replace"><input type="checkbox" checked={replaceDescription} onChange={event=>setReplaceDescription(event.target.checked)}/><span>Substituir minha descrição pelo texto sugerido</span></label>}
+                  <button type="button" className="premium-btn" onClick={applyTemplate} disabled={saving || !!uploading}>Usar este modelo na prévia</button>
+                  <div className="segment-action-guide">
+                    <b>Botões sugeridos</b>
+                    <div className="segment-suggestion-tags">{selectedTemplate.suggestedActions.map(suggestion=><span key={suggestion.type}>{suggestion.label}</span>)}</div>
+                    <p>{!actionsReady ? "Não foi possível conferir os botões existentes. Atualize a página antes de configurar novas sugestões." : suggestedActions.length ? "Configure os destinos reais em Botões. Os tipos que você já utiliza não serão sugeridos novamente." : "Você já utiliza todos os tipos de botão deste modelo. Edite-os em Botões quando precisar."}</p>
+                    <Link href={actionsReady ? "/dashboard/actions?template=" + selectedTemplate.id : "/dashboard/actions"} className="segment-actions-link" onClick={event => { if (dirty && !confirm("Você tem alterações na prévia que ainda não foram salvas. Sair sem publicar essas alterações?")) event.preventDefault(); }}>{actionsReady && suggestedActions.length ? "Configurar botões sugeridos" : "Gerenciar meus botões"} <ExternalLink size={14}/></Link>
+                  </div>
+                </div> : <p className="segment-intro">Restaurante, salão, oficina, loja ou profissional autônomo: escolha uma base pronta ou continue personalizando sua página. Seus dados atuais são preservados.</p>}
               </section>
 
               <section className="editor-section">
@@ -173,7 +211,7 @@ export default function Editor() {
               </section>
 
               <section className="editor-section">
-                <div className="editor-section-heading"><span>03</span><div><b>Paleta de cores</b><small>Use cores com contraste e consistência.</small></div></div>
+                <div className="editor-section-heading"><span>03</span><div><b>Ajustar cores</b><small>Personalize a paleta do modelo ou crie sua própria combinação.</small></div></div>
                 <div className="premium-color-grid">
                   <ColorField title="Fundo" value={f.bg} onChange={v=>set("bg",v)}/>
                   <ColorField title="Texto principal" value={f.text} onChange={v=>set("text",v)}/>
@@ -183,19 +221,17 @@ export default function Editor() {
                 </div>
               </section>
 
-              <section className="editor-section">
+              <section className="editor-section" id="contatos">
                 <div className="editor-section-heading"><span>04</span><div><b>Formas de contato</b><small>Escolha quais contatos aparecem no perfil.</small></div></div>
                 <label className="premium-field">Telefone<input value={f.phone} onChange={e=>set("phone",e.target.value)} placeholder="(61) 99999-9999"/></label>
                 <Toggle checked={f.phoneEnabled} onChange={v=>set("phoneEnabled",v)} title="Exibir opção de ligação"/>
                 <label className="premium-field">WhatsApp<input value={f.whatsapp} onChange={e=>set("whatsapp",e.target.value)} placeholder="5561999999999"/></label>
                 <Toggle checked={f.whatsappEnabled} onChange={v=>set("whatsappEnabled",v)} title="Exibir botão do WhatsApp"/>
               </section>
-              <button className="premium-btn premium-btn-dark editor-save-bottom" onClick={save} disabled={saving || !!uploading || !id}>
-                {saving ? <LoaderCircle size={15} className="spin"/> : <Check size={15}/>} {saving ? "Salvando..." : "Salvar e atualizar página"}
-              </button>
-            </div>
 
-            <aside className="editor-preview-column">
+            </fieldset>
+
+            <aside className="editor-preview-column" id="editor-preview" tabIndex={-1}>
               <div className="editor-preview-heading"><span><Smartphone size={15}/> PRÉ-VISUALIZAÇÃO</span><small>Atualiza enquanto você edita</small></div>
               <div className="editor-device">
                 <div className="editor-device-top"><i/><i/><i/></div>

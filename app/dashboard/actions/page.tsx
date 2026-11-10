@@ -1,78 +1,196 @@
 "use client";
 
-import {useEffect,useMemo,useState} from "react";
-import {useRouter} from "next/navigation";
-import {createClient} from "@/lib/supabase-browser";
-import {actionTarget} from "@/lib/action-target";
+import { Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowDown, ArrowUp, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { createClient } from "@/lib/supabase-browser";
+import { actionPayload, actionTypes, emptyActionForm, formFromAction, moveAction, type ActionForm, type ActionType, type EditableAction } from "@/lib/action-editor";
+import { getSegmentTemplate, missingTemplateActions, type TemplateActionSuggestion } from "@/lib/segment-templates";
+import "../content-editor.css";
 
-const types=[["whatsapp","WhatsApp","wa"],["instagram","Instagram","ig"],["google","Avaliação do Google","star"],["pix","PIX","pix"],["website","Site","web"],["phone","Telefone","tel"],["maps","Localização","map"],["wifi","Wi-Fi","wifi"],["custom","Personalizado","link"]];
+type QRCode = { id: string; name: string };
+type Contacts = { whatsapp?: string | null; whatsappEnabled?: boolean; phone?: string | null; phoneEnabled?: boolean };
 
-export default function Actions(){
-  const sb=useMemo(()=>createClient(),[]),router=useRouter();
-  const [message,setMessage]=useState(""),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
-  const [id,setId]=useState(""),[items,setItems]=useState<any[]>([]),[qrCodes,setQrCodes]=useState<any[]>([]);
-  const [f,setF]=useState({type:"whatsapp",label:"WhatsApp",url:"",pixKeyType:"random",pixKey:"",pixReceiver:"",pixAmount:"",pixDescription:"",pixCopyPaste:"",pixQrCodeId:"",wifiSsid:"",wifiPassword:"",wifiSecurity:"WPA",wifiHidden:false,wifiQrCodeId:""});
-  async function load(cid:string){
-    const {data,error}=await sb.from("actions").select("*").eq("company_id",cid).order("position");
-    if(error){setMessage(error.message);setLoading(false);return;}
-    setItems(data||[]);
-    const {data:qr,error:qrError}=await sb.from("qr_codes").select("id,name,image_url,description").eq("company_id",cid).eq("enabled",true).order("position");
-    if(qrError)setMessage(qrError.message);
-    setQrCodes(qr||[]);setLoading(false);
+export default function ActionsPage() {
+  return <Suspense fallback={<p className="subpage" role="status">Carregando botões…</p>}><Actions /></Suspense>;
+}
+
+function Actions() {
+  const sb = useMemo(() => createClient(), []), router = useRouter(), search = useSearchParams();
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [canEdit, setCanEdit] = useState(false);
+  const [dataReady, setDataReady] = useState(false);
+  const [companyId, setCompanyId] = useState(""), [items, setItems] = useState<EditableAction[]>([]), [qrCodes, setQrCodes] = useState<QRCode[]>([]);
+  const [contacts, setContacts] = useState<Contacts>({});
+  const [editingId, setEditingId] = useState<string | null>(null), [form, setForm] = useState<ActionForm>(() => emptyActionForm());
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const nameInput = useRef<HTMLInputElement>(null), builder = useRef<HTMLDivElement>(null);
+  const template = getSegmentTemplate(search.get("template"));
+  const suggestions = template && dataReady ? missingTemplateActions(template, items, contacts) : [];
+  const directContactExists = !editingId && ((form.type === "whatsapp" && contacts.whatsapp && contacts.whatsappEnabled !== false)
+    || (form.type === "phone" && contacts.phone && contacts.phoneEnabled !== false));
+
+  async function load(id: string) {
+    setDataReady(false);
+    const [actions, qrs] = await Promise.all([
+      sb.from("actions").select("*").eq("company_id", id).order("position").order("created_at").order("id"),
+      sb.from("qr_codes").select("id,name").eq("company_id", id).eq("enabled", true).order("position"),
+    ]);
+    if (actions.error || qrs.error) throw new Error("Não foi possível carregar os botões e QR Codes. Tente novamente.");
+    setItems(actions.data || []); setQrCodes(qrs.data || []); setDataReady(true);
   }
-  useEffect(()=>{(async()=>{const {data:{user}}=await sb.auth.getUser();if(!user)return router.push("/login");const {data:m}=await sb.from("company_members").select("company_id").eq("user_id",user.id).limit(1).maybeSingle();if(!m)return router.push("/acesso-pendente");setId(m.company_id);await load(m.company_id)})().catch(()=>{setMessage("Não foi possível carregar as ações. Atualize a página para tentar novamente.");setLoading(false);})},[router,sb]);
-  async function add(e:React.FormEvent){
-    e.preventDefault();
-    if(!id||busy||loading)return;
-    setMessage("");
-    const t=types.find(x=>x[0]===f.type);
-    let target="";
-    try{target=f.type==="pix"?"#pix":f.type==="wifi"?"#wifi":actionTarget(f.type,f.url);}catch(error){setMessage(error instanceof Error?error.message:"Destino inválido.");return;}
-    if(f.type==="pix"&&!f.pixKey.trim()&&!f.pixCopyPaste.trim()&&!f.pixQrCodeId){setMessage("Informe uma chave PIX, um código Copia e Cola ou selecione um QR Code.");return;}
-    if(f.type==="wifi"&&(!f.wifiSsid.trim()||(f.wifiSecurity!=="nopass"&&!f.wifiPassword))){setMessage("Informe a rede e a senha do Wi-Fi, ou selecione Sem senha.");return;}
-    setBusy(true);
-    const payload:any={company_id:id,type:f.type,label:f.label.trim()||t?.[1],icon:t?.[2]||"link",position:items.reduce((max,item)=>Math.max(max,item.position),-1)+1,enabled:true,url:target};
-    if(f.type==="wifi"){payload.wifi_ssid=f.wifiSsid.trim();payload.wifi_password=f.wifiPassword||null;payload.wifi_security=f.wifiSecurity;payload.wifi_hidden=f.wifiHidden;payload.wifi_qr_code_id=f.wifiQrCodeId||null;}
-    if(f.type==="pix"){
-      payload.pix_key=f.pixKey||null;
-      payload.pix_key_type=f.pixKeyType;
-      payload.pix_receiver_name=f.pixReceiver||null;
-      payload.pix_amount=f.pixAmount?Number(f.pixAmount):null;
-      payload.pix_description=f.pixDescription||null;
-      payload.pix_copy_paste=f.pixCopyPaste||null;
-      payload.pix_qr_code_id=f.pixQrCodeId||null;
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user) { router.replace("/login"); return; }
+        const { data: member, error } = await sb.from("company_members").select("company_id,role").eq("user_id", user.id).limit(1).maybeSingle();
+        if (error) throw new Error("Não foi possível carregar sua empresa. Atualize a página.");
+        if (!member) { router.replace("/acesso-pendente"); return; }
+        const { data: company, error: companyError } = await sb.from("companies")
+          .select("phone,whatsapp,phone_enabled,whatsapp_enabled").eq("id", member.company_id).single();
+        if (companyError) throw new Error("Não foi possível verificar os contatos da empresa.");
+        if (!alive) return;
+        setCompanyId(member.company_id); setCanEdit(["owner", "admin", "editor"].includes(member.role));
+        setContacts({ phone: company.phone, whatsapp: company.whatsapp, phoneEnabled: company.phone_enabled, whatsappEnabled: company.whatsapp_enabled });
+        await load(member.company_id);
+      } catch (error) { if (alive) setMessage(error instanceof Error ? error.message : "Não foi possível carregar os botões."); }
+      finally { if (alive) setLoading(false); }
+    })();
+    return () => { alive = false; };
+  }, [router, sb]);
+
+  function set<K extends keyof ActionForm>(key: K, value: ActionForm[K]) { setForm(current => ({ ...current, [key]: value })); }
+  function focusBuilder() { requestAnimationFrame(() => { builder.current?.scrollIntoView({ behavior: "smooth", block: "start" }); nameInput.current?.focus({ preventScroll: true }); }); }
+  function startEdit(action: EditableAction) { setForm(formFromAction(action)); setEditingId(action.id); setMessage(""); focusBuilder(); }
+  function cancelEdit() { setEditingId(null); setForm(emptyActionForm()); setMessage(""); }
+  function configureSuggestion(suggestion: TemplateActionSuggestion) {
+    setEditingId(null); setForm(emptyActionForm(suggestion.type as ActionType, suggestion.label));
+    setMessage(suggestion.hint + " Preencha seu destino e salve para publicar."); focusBuilder();
+  }
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    if (busy || loading || !dataReady || !companyId || !canEdit || directContactExists) return;
+    let payload: ReturnType<typeof actionPayload>;
+    try { payload = actionPayload(form); } catch (error) { setMessage(error instanceof Error ? error.message : "Confira os dados do botão."); return; }
+    setBusy(true); setMessage("");
+    try {
+      const result = editingId
+        ? await sb.from("actions").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", editingId).eq("company_id", companyId).select("id").single()
+        : await sb.from("actions").insert({ ...payload, company_id: companyId, position: items.reduce((max, action) => Math.max(max, action.position), -1) + 1, enabled: true }).select("id").single();
+      if (result.error) throw new Error("Não foi possível salvar o botão. Verifique sua permissão e tente novamente.");
+      const edited = Boolean(editingId);
+      setForm(emptyActionForm()); setEditingId(null); await load(companyId);
+      setMessage(edited ? "Botão atualizado. A página pública já usa os novos dados." : "Botão adicionado à sua página.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível salvar o botão."); }
+    finally { setBusy(false); }
+  }
+
+  async function remove(action: EditableAction) {
+    if (busy || !dataReady || !canEdit || !confirm(`Excluir o botão “${action.label}”?`)) return;
+    setBusy(true); setMessage("");
+    try {
+      const result = await sb.from("actions").delete().eq("id", action.id).eq("company_id", companyId).select("id").single();
+      if (result.error) throw new Error("Não foi possível excluir o botão. Tente novamente.");
+      if (editingId === action.id) { setEditingId(null); setForm(emptyActionForm()); }
+      await load(companyId); setMessage("Botão excluído.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível excluir o botão."); }
+    finally { setBusy(false); }
+  }
+
+  async function toggle(action: EditableAction) {
+    if (busy || !dataReady || !canEdit) return;
+    if (!action.enabled) {
+      try { actionPayload(formFromAction(action)); } catch { startEdit(action); setMessage("Complete o destino deste botão antes de ativá-lo."); return; }
     }
-    const {error}=await sb.from("actions").insert(payload);
-    if(error){setMessage(error.message);setBusy(false);return}
-    setF({type:"whatsapp",label:"WhatsApp",url:"",pixKeyType:"random",pixKey:"",pixReceiver:"",pixAmount:"",pixDescription:"",pixCopyPaste:"",pixQrCodeId:"",wifiSsid:"",wifiPassword:"",wifiSecurity:"WPA",wifiHidden:false,wifiQrCodeId:""});
-    setMessage("Ação adicionada.");setBusy(false);await load(id);
+    setBusy(true); setMessage("");
+    try {
+      const result = await sb.from("actions").update({ enabled: !action.enabled }).eq("id", action.id).eq("company_id", companyId).select("id").single();
+      if (result.error) throw new Error("Não foi possível alterar a visibilidade do botão.");
+      await load(companyId); setMessage(action.enabled ? "Botão ocultado da página pública." : "Botão ativado na página pública.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível atualizar o botão."); }
+    finally { setBusy(false); }
   }
-  async function remove(x:string){
-    if(busy||!confirm("Excluir esta ação?"))return;
-    setBusy(true);const {error}=await sb.from("actions").delete().eq("id",x).eq("company_id",id).select("id").single();
-    if(error)setMessage(error.message);else {setMessage("Ação excluída.");await load(id);}setBusy(false);
+
+  async function reorder(sourceId: string, targetId: string) {
+    if (busy || !dataReady || !canEdit || sourceId === targetId) return;
+    const next = moveAction(items, sourceId, targetId);
+    if (next.every((item, index) => item.id === items[index].id)) return;
+    const previous = items;
+    setBusy(true); setItems(next); setMessage("");
+    try {
+      const result = await sb.rpc("reorder_company_actions", { p_company_id: companyId, p_action_ids: next.map(action => action.id) });
+      if (result.error) throw new Error("A ordem não foi salva. A lista pode ter mudado em outra janela. Tente novamente.");
+      await load(companyId); setMessage("Ordem dos botões atualizada.");
+    } catch (error) {
+      setItems(previous);
+      try { await load(companyId); } catch { /* Keep the last complete list and the explicit reorder error. */ }
+      setMessage(error instanceof Error ? error.message : "Não foi possível salvar a ordem.");
+    } finally { setBusy(false); setDraggedId(null); }
   }
-  async function toggle(a:any){
-    if(busy)return;
-    setBusy(true);const {error}=await sb.from("actions").update({enabled:!a.enabled}).eq("id",a.id).eq("company_id",id).select("id").single();
-    if(error)setMessage(error.message);else await load(id);setBusy(false);
-  }
-  return <main className="premium-shell actions-premium"><header className="premium-nav"><button className="premium-btn" onClick={()=>router.back()}>← Voltar</button><b className="brand"><span className="brand-mark">N</span><span>NFC<span>SMART</span></span></b><span className="section-kicker">EDITOR DE AÇÕES</span></header><section className="subpage actions-content"><div className="section-kicker"><span className="live-dot"/> PERSONALIZE SUA PÁGINA</div><div className="hub-title"><div><h1>Conexões rápidas. <span>Do seu jeito.</span></h1><p>Adicione os atalhos que seus clientes precisam para entrar em contato, pagar, encontrar sua empresa ou se conectar.</p></div></div><div className="actions-workspace"><div className="actions-builder"><p className="eyebrow">NOVA AÇÃO</p><h2>Adicionar um botão</h2>
-    {message&&<p className="notice" role="status">{message}</p>}
-    <form className="action-form" onSubmit={add}>
-      <select value={f.type} onChange={e=>{const next=types.find(t=>t[0]===e.target.value);setF({...f,type:e.target.value,label:next?.[1]||"",url:""})}} aria-label="Tipo da ação">{types.map(t=><option key={t[0]} value={t[0]}>{t[1]}</option>)}</select>
-      <input placeholder="Nome" aria-label="Nome do botão" maxLength={80} value={f.label} onChange={e=>setF({...f,label:e.target.value})}/>
-      {f.type==="wifi" ? <div className="pix-action-form"><input placeholder="Nome da rede (SSID)" value={f.wifiSsid} onChange={e=>setF({...f,wifiSsid:e.target.value})} required/><input type="text" placeholder="Senha do Wi-Fi" value={f.wifiPassword} onChange={e=>setF({...f,wifiPassword:e.target.value})}/><select value={f.wifiSecurity} onChange={e=>setF({...f,wifiSecurity:e.target.value})}><option value="WPA">WPA / WPA2 / WPA3</option><option value="WEP">WEP</option><option value="nopass">Sem senha</option></select><label className="checkline"><input type="checkbox" checked={f.wifiHidden} onChange={e=>setF({...f,wifiHidden:e.target.checked})}/> Rede oculta</label><select value={f.wifiQrCodeId} onChange={e=>setF({...f,wifiQrCodeId:e.target.value})}><option value="">Sem QR Code Wi-Fi</option>{qrCodes.map(q=><option key={q.id} value={q.id}>{q.name}</option>)}</select><small className="muted">Envie o QR Code em <b>QR Codes</b> e selecione aqui. O NFC SMART não gera QR Code.</small></div> : f.type!=="pix" ? <input placeholder="URL ou destino" value={f.url} onChange={e=>setF({...f,url:e.target.value})} required/> :
-      <div className="pix-action-form">
-        <select value={f.pixKeyType} onChange={e=>setF({...f,pixKeyType:e.target.value})}><option value="random">Chave aleatória</option><option value="cpf">CPF</option><option value="cnpj">CNPJ</option><option value="phone">Telefone</option><option value="email">E-mail</option></select>
-        <input placeholder="Chave PIX" value={f.pixKey} onChange={e=>setF({...f,pixKey:e.target.value})}/>
-        <input placeholder="Nome do recebedor (opcional)" value={f.pixReceiver} onChange={e=>setF({...f,pixReceiver:e.target.value})}/>
-        <input type="number" min="0" step="0.01" placeholder="Valor (opcional)" value={f.pixAmount} onChange={e=>setF({...f,pixAmount:e.target.value})}/>
-        <input placeholder="Descrição (opcional)" value={f.pixDescription} onChange={e=>setF({...f,pixDescription:e.target.value})}/>
-        <input placeholder="Pix Copia e Cola (opcional)" value={f.pixCopyPaste} onChange={e=>setF({...f,pixCopyPaste:e.target.value})}/>
-        <select value={f.pixQrCodeId} onChange={e=>setF({...f,pixQrCodeId:e.target.value})}><option value="">Sem QR Code</option>{qrCodes.map(q=><option key={q.id} value={q.id}>{q.name}</option>)}</select>
-        <small className="muted">Use um QR Code que você já enviou ao NFC SMART. O sistema não gera QR.</small>
-      </div>}
-      <button className="btn dark" disabled={busy||loading||!id}>{busy?"Salvando...":"Adicionar"}</button>
-    </form></div><div className="actions-existing"><div className="actions-existing-heading"><div><p className="eyebrow">SEUS BOTÕES</p><h2>Organize suas conexões</h2></div><span>{items.length} itens</span></div><div className="action-list">{items.map(a=><div className={"action-item "+(!a.enabled?"off":"")} key={a.id}><b>{a.icon}</b><div><strong>{a.label}</strong><small>{a.type==="pix" ? (a.pix_key ? "PIX · "+a.pix_key : "PIX · Copia e Cola") : a.type==="wifi" ? "Wi-Fi · "+(a.wifi_ssid||"Rede") : a.url}</small></div><button disabled={busy} onClick={()=>toggle(a)}>{a.enabled?"Ativo":"Inativo"}</button><button disabled={busy} onClick={()=>remove(a.id)}>Excluir</button></div>)}</div></div></div></section></main>
+
+  const selectedSuggestion = suggestions.find(suggestion => suggestion.type === form.type);
+  const destinationPlaceholder = selectedSuggestion?.placeholder || (form.type === "whatsapp" || form.type === "phone" ? "Número com DDD" : form.type === "instagram" ? "@suaempresa ou link do perfil" : "https://seusite.com.br");
+
+  return <main className="premium-shell actions-premium"><section className="subpage actions-content">
+    <div className="section-kicker">BOTÕES DA PÁGINA</div>
+    <div className="hub-title"><div><h1>Seus atalhos. <span>Na ordem certa.</span></h1><p>Crie, edite e organize os botões que seus clientes encontram ao tocar na plaquinha.</p></div></div>
+    {message && <p className="notice action-feedback" role="status" aria-live="polite">{message}</p>}
+    {!loading && !canEdit && <p className="notice">Seu acesso permite consultar os botões. Peça a um administrador da empresa para editar.</p>}
+    {template && <section className="template-action-suggestions" aria-label="Sugestões do modelo">
+      <div><span className="section-kicker">MODELO {template.name.toLocaleUpperCase("pt-BR")}</span><h2>Atalhos para seu segmento</h2><p>Os botões já configurados ficam fora das sugestões. Cada novo destino é preenchido por você antes de publicar.</p></div>
+      {!dataReady ? <p>As sugestões ficam disponíveis depois que todos os seus botões forem carregados.</p> : suggestions.length ? <div className="template-suggestion-list">{suggestions.map(suggestion => <button className="template-suggestion" type="button" key={suggestion.type} onClick={() => configureSuggestion(suggestion)} disabled={busy || loading || !canEdit}><Plus size={16}/><span><b>{suggestion.label}</b><small>{suggestion.hint}</small></span><span>Configurar</span></button>)}</div> : <p>Você já configurou os tipos de botão sugeridos para este segmento.</p>}
+      <Link href="/dashboard/editor#modelos">Ver modelos da página</Link>
+    </section>}
+    <div className="actions-workspace">
+      <div className="actions-builder" ref={builder}>
+        <p className="eyebrow">{editingId ? "EDITANDO BOTÃO" : "NOVO BOTÃO"}</p><h2>{editingId ? "Atualizar botão" : "Adicionar um botão"}</h2>
+        <form className="action-form" onSubmit={save}>
+          <fieldset disabled={busy || loading || !dataReady || !canEdit} className="action-fields">
+            <label>Tipo do botão<select value={form.type} onChange={event => { const type = event.target.value as ActionType; setForm(emptyActionForm(type)); }} aria-label="Tipo da ação">{actionTypes.map(type => <option key={type[0]} value={type[0]}>{type[1]}</option>)}</select></label>
+            <label>Nome do botão<input ref={nameInput} placeholder="Ex.: Agendar horário" aria-label="Nome do botão" maxLength={80} required value={form.label} onChange={event => set("label", event.target.value)}/></label>
+            {directContactExists && <p className="contact-already-configured">Esse contato já aparece na página. <Link href="/dashboard/editor#contatos">Edite o contato em Minha página</Link> para manter um único botão.</p>}
+            {form.type === "wifi" ? <div className="pix-action-form">
+              <label>Nome da rede (SSID)<input placeholder="Nome da rede (SSID)" value={form.wifiSsid} onChange={event => set("wifiSsid", event.target.value)} required/></label>
+              <label>Segurança<select value={form.wifiSecurity} onChange={event => set("wifiSecurity", event.target.value)}><option value="WPA">WPA / WPA2 / WPA3</option><option value="WEP">WEP</option><option value="nopass">Sem senha</option></select></label>
+              {form.wifiSecurity !== "nopass" && <label>Senha do Wi-Fi<input type="text" autoComplete="off" placeholder="Senha do Wi-Fi" value={form.wifiPassword} onChange={event => set("wifiPassword", event.target.value)} required/></label>}
+              <label className="checkline"><input type="checkbox" checked={form.wifiHidden} onChange={event => set("wifiHidden", event.target.checked)}/> Rede oculta</label>
+              <label>QR Code da rede<select value={form.wifiQrCodeId} onChange={event => set("wifiQrCodeId", event.target.value)}><option value="">Sem QR Code Wi-Fi</option>{qrCodes.map(qr => <option key={qr.id} value={qr.id}>{qr.name}</option>)}</select></label>
+              <small className="muted">Envie uma imagem de QR Code em <Link href="/dashboard/nfc#qr-codes">Compartilhar e QR Codes</Link> e selecione aqui.</small>
+            </div> : form.type === "pix" ? <div className="pix-action-form">
+              <label>Tipo da chave<select value={form.pixKeyType} onChange={event => set("pixKeyType", event.target.value)}><option value="random">Chave aleatória</option><option value="cpf">CPF</option><option value="cnpj">CNPJ</option><option value="phone">Telefone</option><option value="email">E-mail</option></select></label>
+              <label>Chave PIX<input placeholder="Chave PIX" value={form.pixKey} onChange={event => set("pixKey", event.target.value)}/></label>
+              <label>Nome do recebedor<input placeholder="Nome do recebedor (opcional)" value={form.pixReceiver} onChange={event => set("pixReceiver", event.target.value)}/></label>
+              <label>Valor em reais (opcional)<input type="number" min="0" max="999999999" step="0.01" placeholder="Valor (opcional)" value={form.pixAmount} onChange={event => set("pixAmount", event.target.value)}/></label>
+              <label>Descrição<input placeholder="Descrição (opcional)" value={form.pixDescription} onChange={event => set("pixDescription", event.target.value)}/></label>
+              <label>PIX Copia e Cola<input placeholder="Pix Copia e Cola (opcional)" value={form.pixCopyPaste} onChange={event => set("pixCopyPaste", event.target.value)}/></label>
+              <label>QR Code do PIX<select value={form.pixQrCodeId} onChange={event => set("pixQrCodeId", event.target.value)}><option value="">Sem QR Code</option>{qrCodes.map(qr => <option key={qr.id} value={qr.id}>{qr.name}</option>)}</select></label>
+              <small className="muted">Informe uma chave, um código Copia e Cola ou uma imagem de QR Code enviada em <Link href="/dashboard/nfc#qr-codes">Compartilhar e QR Codes</Link>.</small>
+            </div> : <label>Destino<input placeholder={destinationPlaceholder} aria-label="URL ou destino" value={form.url} maxLength={2048} onChange={event => set("url", event.target.value)} required/></label>}
+          </fieldset>
+          <div className="action-form-controls"><button className="btn dark" disabled={busy || loading || !dataReady || !companyId || !canEdit || Boolean(directContactExists)}>{busy ? "Salvando…" : editingId ? "Salvar botão" : "Adicionar botão"}</button>{editingId && <button type="button" className="premium-btn" onClick={cancelEdit} disabled={busy}>Cancelar edição</button>}</div>
+        </form>
+      </div>
+      <section className="actions-existing" aria-label="Botões cadastrados">
+        <div className="actions-existing-heading"><div><p className="eyebrow">SEUS BOTÕES</p><h2>Organize suas conexões</h2></div><span>{items.length} itens</span></div>
+        <p className="action-order-help">Arraste pela alça ou use as setas para mudar a ordem. As alterações aparecem na página pública.</p>
+        {loading ? <p role="status">Carregando botões…</p> : !items.length ? <p className="empty">Sua página ainda não tem botões. Configure o primeiro no formulário ao lado.</p> : <ol className="editable-action-list" aria-label="Ordem dos botões">{items.map((action, index) => <li key={action.id}
+          className={"editable-action " + (!action.enabled ? "is-hidden " : "") + (editingId === action.id ? "is-editing " : "") + (draggedId === action.id ? "is-dragging" : "")}
+          onDragOver={event => { if (draggedId && canEdit && !busy) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }}
+          onDrop={event => { event.preventDefault(); const source = event.dataTransfer.getData("text/plain"); if (source === draggedId) void reorder(source, action.id); }}>
+          <div className="editable-action-summary"><button className="action-drag-handle" type="button" draggable={canEdit && dataReady && !busy} disabled={!canEdit || !dataReady || busy} aria-label={"Arrastar " + action.label}
+            onDragStart={event => { event.dataTransfer.setData("text/plain", action.id); event.dataTransfer.effectAllowed = "move"; setDraggedId(action.id); }} onDragEnd={() => setDraggedId(null)}><GripVertical size={18}/></button>
+            <span className="action-order-number">{index + 1}</span><div><strong>{action.label}</strong><small>{action.type === "pix" ? "Pagamento por PIX" : action.type === "wifi" ? "Wi-Fi · " + (action.wifi_ssid || "Rede") : action.url}</small><span className="action-visibility">{action.enabled ? "Visível na página" : "Oculto da página"}</span></div></div>
+          <div className="editable-action-controls"><div className="action-move-controls"><button type="button" disabled={!canEdit || !dataReady || busy || index === 0} onClick={() => void reorder(action.id, items[index - 1].id)} aria-label={"Mover " + action.label + " para cima"}><ArrowUp size={15}/></button><button type="button" disabled={!canEdit || !dataReady || busy || index === items.length - 1} onClick={() => void reorder(action.id, items[index + 1].id)} aria-label={"Mover " + action.label + " para baixo"}><ArrowDown size={15}/></button></div>
+            <button type="button" onClick={() => startEdit(action)} disabled={!canEdit || !dataReady || busy} aria-pressed={editingId === action.id}><Pencil size={14}/> Editar</button>
+            <button type="button" onClick={() => void toggle(action)} disabled={!canEdit || !dataReady || busy} aria-label={(action.enabled ? "Ocultar " : "Ativar ") + action.label}>{action.enabled ? "Ocultar" : "Ativar"}</button>
+            <button type="button" className="action-delete" onClick={() => void remove(action)} disabled={!canEdit || !dataReady || busy} aria-label={"Excluir " + action.label}><Trash2 size={14}/><span>Excluir</span></button></div>
+        </li>)}</ol>}
+      </section>
+    </div>
+  </section></main>;
 }

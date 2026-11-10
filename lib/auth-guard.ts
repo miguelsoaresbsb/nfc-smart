@@ -9,7 +9,7 @@ export const getAuthorizedAccess = cache(async () => {
   const { data: admin, error: adminError } = await supabase
     .from("platform_admins").select("user_id").eq("user_id", user.id).maybeSingle();
   if (adminError) throw new Error("Não foi possível verificar seu acesso. Tente novamente.");
-  if (admin) return { user, isAdmin: true };
+  if (admin) return { user, isAdmin: true as const, company: null };
 
   const { data: requests, error: requestError } = await supabase
     .from("access_requests").select("company_id")
@@ -18,9 +18,14 @@ export const getAuthorizedAccess = cache(async () => {
   const companyIds = (requests || []).map((request) => request.company_id);
   if (!companyIds.length) redirect("/acesso-pendente");
   const { data: member, error: memberError } = await supabase
-    .from("company_members").select("company_id")
-    .eq("user_id", user.id).in("company_id", companyIds).limit(1).maybeSingle();
+    .from("company_members").select("company_id,role,companies(id,name,slug,description,logo_url,phone,whatsapp,phone_enabled,whatsapp_enabled)")
+    .eq("user_id", user.id).in("company_id", companyIds).order("created_at").limit(1).maybeSingle();
   if (memberError) throw new Error("Não foi possível verificar sua empresa. Tente novamente.");
   if (!member) redirect("/acesso-pendente");
-  return { user, isAdmin: false };
+  const company = (Array.isArray(member.companies) ? member.companies[0] : member.companies) as {
+    id: string; name: string; slug: string; description: string | null; logo_url: string | null;
+    phone: string | null; whatsapp: string | null; phone_enabled: boolean; whatsapp_enabled: boolean;
+  } | null;
+  if (!company) redirect("/acesso-pendente");
+  return { user, isAdmin: false as const, company, role: member.role as string };
 });

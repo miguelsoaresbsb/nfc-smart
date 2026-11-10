@@ -5,15 +5,19 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, LockKeyhole, Wifi } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
 import { safeAuthPath } from "@/lib/auth-redirect";
+import "../auth-flow.css";
 
 export default function Login() {
   const [email,setEmail]=useState("");
   const [password,setPassword]=useState("");
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
+  const [passwordUpdated,setPasswordUpdated]=useState(false);
   const router=useRouter();
   useEffect(() => {
-    const reason = new URLSearchParams(window.location.search).get("auth_error");
+    const params = new URLSearchParams(window.location.search);
+    const reason = params.get("auth_error");
+    setPasswordUpdated(params.get("password") === "updated");
     if (reason === "callback") setError("O link de confirmação expirou ou é inválido. Entre com seu e-mail e senha ou solicite um novo link.");
     if (reason === "signout") setError("Não foi possível encerrar sua sessão. Tente novamente.");
   }, []);
@@ -46,6 +50,8 @@ export default function Login() {
           <h1>Bem-vindo de volta.</h1><p>Acesse seu espaço para gerenciar sua presença digital.</p>
           <label>E-mail<input type="email" autoComplete="email" placeholder="voce@empresa.com" value={email} onChange={e=>setEmail(e.target.value)} required/></label>
           <label>Senha<input type="password" autoComplete="current-password" placeholder="Sua senha" value={password} onChange={e=>setPassword(e.target.value)} required/></label>
+          <Link href="/recuperar-senha" className="auth-flow-forgot">Esqueci minha senha</Link>
+          {passwordUpdated && <div className="auth-flow-success" role="status">Senha atualizada. Entre com sua nova senha.</div>}
           {error&&<div className="error" role="alert">{error}</div>}
           <button className="premium-btn premium-btn-dark auth-submit" disabled={loading}>{loading?"Entrando...":"Entrar no painel"} <ArrowRight size={15}/></button>
           <div className="auth-premium-footer">Ainda não tem acesso? <Link href="/solicitar-acesso">Solicitar cadastro</Link></div>

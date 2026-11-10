@@ -81,13 +81,7 @@ export default function Subscription() {
 
   return (
     <main className="premium-shell subscription-page">
-      <header className="premium-nav">
-        <Link href="/dashboard" className="brand">
-          <span className="brand-mark"><Wifi size={17} /></span>
-          <span>NFC<span>SMART</span></span>
-        </Link>
-        <Link href="/dashboard" className="premium-btn"><ArrowLeft size={15} /> Painel</Link>
-      </header>
+
 
       <section className="subpage">
         <div className="section-kicker"><span className="live-dot" /> ASSINATURA</div>

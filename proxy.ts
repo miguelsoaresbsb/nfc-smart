@@ -28,7 +28,8 @@ export async function proxy(request: NextRequest) {
 
   // Refresh the session here; authorization is also enforced by the server layouts.
   const { data } = await supabase.auth.getClaims();
-  if (!data?.claims?.sub && request.nextUrl.pathname !== "/acesso-pendente") {
+  const protectedRoute = request.nextUrl.pathname.startsWith("/dashboard") || request.nextUrl.pathname.startsWith("/admin");
+  if (!data?.claims?.sub && protectedRoute) {
     const login = new URL("/login", request.url);
     login.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
     const redirect = NextResponse.redirect(login);
@@ -45,5 +46,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/acesso-pendente"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/acesso-pendente", "/redefinir-senha"],
 };

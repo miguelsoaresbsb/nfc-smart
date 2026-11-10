@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { segmentTemplates } from "@/lib/segment-templates";
+import "./landing-segments.css";
 import { ArrowRight, Check, Fingerprint, Globe2, MousePointerClick, ShieldCheck, Sparkles, Wifi } from "lucide-react";
 
 export default function Home() {
@@ -33,6 +35,18 @@ export default function Home() {
         <div><span><Globe2 size={19}/></span><b>Perfil profissional</b><p>Apresente sua empresa com identidade visual própria.</p></div>
         <div><span><MousePointerClick size={19}/></span><b>Ações personalizadas</b><p>Facilite o contato, o pagamento e a localização.</p></div>
         <div><span><ShieldCheck size={19}/></span><b>Controle em um painel</b><p>Edite seu perfil e acompanhe as interações.</p></div>
+      </section>
+      <section className="landing-segments" aria-labelledby="segment-heading">
+        <div className="section-kicker">FEITO PARA O SEU NEGÓCIO</div>
+        <h2 id="segment-heading">Um começo pronto.<br/><span>Uma página com a sua cara.</span></h2>
+        <p>Escolha um modelo no editor, personalize as cores e configure os contatos reais da sua empresa. Seu conteúdo continua sob seu controle.</p>
+        <div className="landing-segment-grid">{segmentTemplates.map(template => <article className="landing-segment-card" key={template.id}>
+          <div className="landing-segment-sample" style={{ background: template.colors.bg, color: template.colors.text }} aria-label={"Exemplo visual: " + template.name}>
+            <div className="landing-segment-banner" style={{ background: template.colors.primary }}/><span className="landing-segment-avatar" style={{ background: template.colors.primary }}>{template.name.slice(0,1)}</span><b>Sua empresa</b>
+            <div>{template.suggestedActions.slice(0,2).map(action => <span key={action.type} style={{ background: template.colors.primary, color: template.colors.buttonText }}>{action.label}<small>↗</small></span>)}</div>
+          </div><h3>{template.name}</h3><p>{template.summary}</p>
+        </article>)}</div>
+        <small>Os exemplos são ilustrativos. Seus dados e links são configurados no painel.</small>
       </section>
       <section className="landing-bottom"><div><Sparkles size={18}/><span>Seu próximo contato pode começar agora.</span></div><Link href="/solicitar-acesso" className="premium-btn premium-btn-dark">Começar com NFC Smart <ArrowRight size={15}/></Link></section>
     </main>

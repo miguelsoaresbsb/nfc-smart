@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
+import SetupProgress from "@/app/components/SetupProgress";
+import "../auth-flow.css";
 
 const REQUEST_TIMEOUT_MS = 15000;
 
@@ -90,10 +92,11 @@ export default function SolicitarAcesso() {
         <h1>Crie seu perfil</h1>
         <p className="lead">Preencha seus dados para solicitar acesso ao NFC Smart.</p>
 
+        <SetupProgress step={success ? 1 : 0}/>
         {success ? (
           <div className="form-success" role="status">
-            Solicitação enviada com sucesso. Seu pedido está aguardando autorização do administrador.
-            Você poderá entrar no painel somente depois que o administrador autorizar seu acesso.
+            <b>Cadastro recebido.</b> Seu pedido está aguardando autorização do administrador.
+            Após a aprovação, você poderá personalizar sua página e contratar a assinatura para publicá-la.
             {needsConfirmation && <p>Enviamos um link para confirmar seu e-mail. Verifique sua caixa de entrada e a pasta de spam.</p>}
             <p><Link href="/login">Ir para o login</Link></p>
           </div>
@@ -111,6 +114,7 @@ export default function SolicitarAcesso() {
           </form>
         )}
 
+        {!success && <p className="auth-flow-context"><b>Como funciona</b>O cadastro é gratuito. Primeiro o administrador aprova sua empresa; depois você configura a página e ativa a assinatura.</p>}
         <p className="auth-footer">
           <Link href="/">Voltar</Link> · <Link href="/login">Já tenho acesso</Link>
         </p>

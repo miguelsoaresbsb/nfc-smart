@@ -20,15 +20,21 @@ export function createAuthRouteClient(request: NextRequest) {
       },
     },
   );
-  function redirect(path: string, status: 303 | 307 = 303) {
-    const result = NextResponse.redirect(new URL(path, request.url), status);
+  function forward(result: NextResponse) {
     response.cookies.getAll().forEach((cookie) => result.cookies.set(cookie));
     for (const header of ["cache-control", "expires", "pragma"]) {
       const value = response.headers.get(header);
       if (value) result.headers.set(header, value);
     }
     result.headers.set("Cache-Control", "private, no-store");
+    result.headers.set("Referrer-Policy", "no-referrer");
     return result;
   }
-  return { supabase, redirect };
+  function redirect(path: string, status: 303 | 307 = 303) {
+    return forward(NextResponse.redirect(new URL(path, request.url), status));
+  }
+  function json(body: Record<string, unknown>, status = 200) {
+    return forward(NextResponse.json(body, { status }));
+  }
+  return { supabase, redirect, json };
 }
