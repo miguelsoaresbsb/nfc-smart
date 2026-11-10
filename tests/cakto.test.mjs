@@ -17,6 +17,18 @@ test('uses Cakto next period and recurrence, rejects unpaid/wrong-value/wrong-cu
   assert.equal(normalizeCaktoOrder('purchase_approved',{...order,subscription:{id:'c',recurrence_period:30}},config).period_end,'2026-03-02T12:00:00.000Z');
   for (const patch of [{status:'waiting_payment'},{amount:1},{currency:'USD'},{paidAt:null}]) assert.throws(()=>normalizeCaktoOrder('purchase_approved',{...order,...patch},config));
 });
+test('accepts total including buyer fees only when the recurring plan and offer match', () => {
+  const paidWithFees = { ...order, baseAmount: 29.9, amount: 30.89, offer: { id: 'offer-1', price: 29.9, currency: 'BRL' } };
+  assert.equal(normalizeCaktoOrder('purchase_approved', paidWithFees, config).period_end, '2026-02-28T12:00:00.000Z');
+  for (const invalid of [
+    { amount: 29.89 },
+    { baseAmount: 19.9 },
+    { offer: { id: 'offer-1', price: 19.9 } },
+    { amount: 30.89, baseAmount: null, offer: null },
+    { currency: 'USD' },
+  ]) assert.throws(() => normalizeCaktoOrder('purchase_approved', { ...paidWithFees, ...invalid }, config));
+});
+
 test('ignores unrelated V2 products and unsupported nonpurchase events', () => {
   assert.equal(normalizeCaktoOrder('purchase_approved',{...order,product:{id:'other'}},config),null);
   assert.equal(normalizeCaktoOrder('checkout_abandonment',{},config),null);
