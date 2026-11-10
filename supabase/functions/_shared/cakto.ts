@@ -46,7 +46,20 @@ export function normalizeCaktoOrder(event: string, value: unknown, config: Cakto
     if (value.status !== "paid") throw new Error("payment_not_confirmed");
     if (value.currency && value.currency !== "BRL") throw new Error("invalid_payment_currency");
     const amount = Number(value.amount), expected = config.monthlyAmount ?? 29.90;
-    if (value.amount == null || !Number.isFinite(amount) || !Number.isFinite(expected) || Math.abs(amount - expected) > 0.011) throw new Error("invalid_payment_amount");
+    if (value.amount == null || !Number.isFinite(amount) || !Number.isFinite(expected) || Math.abs(amount - expected) > 0.011) {
+      // Authenticated diagnostic only: never log identity, payment credentials, signatures or raw body.
+      const offer = object(value.offer) ? value.offer : {};
+      const base = Number(value.baseAmount);
+      const offered = Number(offer.price);
+      console.error("Cakto amount mismatch", JSON.stringify({
+        expected: Number.isFinite(expected) ? expected : null,
+        charged: value.amount == null || !Number.isFinite(amount) ? null : amount,
+        base: value.baseAmount == null || !Number.isFinite(base) ? null : base,
+        offer: offer.price == null || !Number.isFinite(offered) ? null : offered,
+        currency: value.currency === "BRL" ? "BRL" : "other",
+      }));
+      throw new Error("invalid_payment_amount");
+    }
     if (!paidAt) throw new Error("missing_payment_date");
     periodEnd = date(subscription.next_payment_date);
     if (!periodEnd) {
