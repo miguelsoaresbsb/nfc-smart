@@ -46,16 +46,25 @@ export function normalizeCaktoOrder(event: string, value: unknown, config: Cakto
     if (value.status !== "paid") throw new Error("payment_not_confirmed");
     if (value.currency && value.currency !== "BRL") throw new Error("invalid_payment_currency");
     const amount = Number(value.amount), expected = config.monthlyAmount ?? 29.90;
-    if (value.amount == null || !Number.isFinite(amount) || !Number.isFinite(expected) || Math.abs(amount - expected) > 0.011) {
+    // Cakto's baseAmount and offer.price are the product price; amount is the
+    // total charged to the buyer and may include checkout fees or interest.
+    // Require the recurring product's full price, without accepting an
+    // underpayment or a different offer with the same product ID.
+    const offer = object(value.offer) ? value.offer : {};
+    const base = value.baseAmount == null ? null : Number(value.baseAmount);
+    const offered = offer.price == null ? null : Number(offer.price);
+    const matchesPlan = (price: number | null) => price !== null && Number.isFinite(price) && Number.isFinite(expected) && Math.abs(price - expected) <= 0.011;
+    const listedPrice = base ?? offered ?? amount;
+    if (value.amount == null || !Number.isFinite(amount) || !matchesPlan(listedPrice)
+      || (base !== null && !matchesPlan(base))
+      || (offered !== null && !matchesPlan(offered))
+      || amount + 0.011 < expected) {
       // Authenticated diagnostic only: never log identity, payment credentials, signatures or raw body.
-      const offer = object(value.offer) ? value.offer : {};
-      const base = Number(value.baseAmount);
-      const offered = Number(offer.price);
       console.error("Cakto amount mismatch", JSON.stringify({
         expected: Number.isFinite(expected) ? expected : null,
         charged: value.amount == null || !Number.isFinite(amount) ? null : amount,
-        base: value.baseAmount == null || !Number.isFinite(base) ? null : base,
-        offer: offer.price == null || !Number.isFinite(offered) ? null : offered,
+        base: base !== null && Number.isFinite(base) ? base : null,
+        offer: offered !== null && Number.isFinite(offered) ? offered : null,
         currency: value.currency === "BRL" ? "BRL" : "other",
       }));
       throw new Error("invalid_payment_amount");
