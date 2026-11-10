@@ -53,12 +53,12 @@ export function normalizeCaktoOrder(event: string, value: unknown, config: Cakto
     const offer = object(value.offer) ? value.offer : {};
     const base = value.baseAmount == null ? null : Number(value.baseAmount);
     const offered = offer.price == null ? null : Number(offer.price);
-    const matchesPlan = (price: number | null) => price !== null && Number.isFinite(price) && Number.isFinite(expected) && Math.abs(price - expected) <= 0.011;
+    const matchesPlan = (price: number | null) => price !== null && Number.isFinite(price) && Number.isFinite(expected) && Math.abs(price - expected) <= 0.001;
     const listedPrice = base ?? offered ?? amount;
     if (value.amount == null || !Number.isFinite(amount) || !matchesPlan(listedPrice)
       || (base !== null && !matchesPlan(base))
       || (offered !== null && !matchesPlan(offered))
-      || amount + 0.011 < expected) {
+      || amount + 0.001 < expected) {
       // Authenticated diagnostic only: never log identity, payment credentials, signatures or raw body.
       console.error("Cakto amount mismatch", JSON.stringify({
         expected: Number.isFinite(expected) ? expected : null,
