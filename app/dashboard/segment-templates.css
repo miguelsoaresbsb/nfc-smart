@@ -2,3 +2,18 @@
 @media(max-width:600px){.editor-toolbar{top:65px;gap:7px;padding:10px;flex-wrap:wrap}.editor-save-state{width:100%;margin-right:0;font-size:11px}.editor-toolbar .premium-btn{flex:1;justify-content:center;font-size:12px}.segment-template-sample{padding:20px 14px}.editor-preview-column{scroll-margin-top:190px}}
 
 fieldset.editor-controls{border:0;padding:0;margin:0;min-width:0}.segment-section,#contatos{scroll-margin-top:160px}
+
+.editor-save-state{font-size:13px;line-height:1.5;color:#526247}
+.editor-save-state.is-unsaved{color:#87612a}
+.editor-save-state.is-unsaved:before{content:"";display:inline-block;width:7px;height:7px;margin:0 7px 1px 0;border-radius:50%;background:currentColor}
+.editor-toolbar{top:94px;border-color:#dce4d5}
+.workspace-shell .premium-field select{font-size:16px;min-height:48px}
+.segment-summary,.segment-intro{font-size:14px;color:#58664f;line-height:1.8}
+.segment-replace{font-size:14px;line-height:1.7;min-height:44px}
+.segment-replace input{width:20px;height:20px}
+.segment-action-guide>p{font-size:13px;color:#5d6b53;line-height:1.75}
+.segment-suggestion-tags>span{font-size:12px;padding:7px 10px}
+.segment-actions-link{font-size:14px;min-height:44px;line-height:1.6}
+.segment-sample-caption{font-size:12px;line-height:1.6}
+.segment-template-sample>p{font-size:14px}
+@media(max-width:760px){.editor-toolbar{top:76px;gap:8px;padding:12px;margin-bottom:18px}.editor-save-state{width:100%;font-size:13px}.editor-toolbar .premium-btn{flex:1;white-space:normal;font-size:13px;min-height:46px}.segment-section,#contatos{scroll-margin-top:205px}.editor-preview-column{scroll-margin-top:205px}}

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ExternalLink, ImagePlus, LoaderCircle, Palette, Save, Smartphone, Sparkles } from "lucide-react";
@@ -30,6 +30,10 @@ export default function Editor() {
   const [actions, setActions] = useState<PreviewAction[]>([]);
   const [actionsReady, setActionsReady] = useState(false);
   const [msg, setMsg] = useState("");
+  const [messageError, setMessageError] = useState(false);
+  const [nameError, setNameError] = useState(false);
+  const nameInput = useRef<HTMLInputElement>(null);
+  const feedback = useRef<HTMLDivElement>(null);
   const [savedState, setSavedState] = useState("");
   const [selectedSegment, setSelectedSegment] = useState("");
   const [replaceDescription, setReplaceDescription] = useState(false);
@@ -52,7 +56,7 @@ export default function Editor() {
       ]);
       if (!alive) return;
       if (companyResult.error || !companyResult.data) {
-        setMsg(companyResult.error?.message || "Não foi possível carregar a empresa.");
+        setMessageError(true); setMsg("Não foi possível carregar a empresa. Atualize a página para tentar novamente.");
         setLoading(false);
         return;
       }
@@ -74,21 +78,21 @@ export default function Editor() {
       setSavedState(JSON.stringify(loadedForm));
       setActions((actionResult.data || []) as PreviewAction[]);
       setActionsReady(!actionResult.error);
-      if (actionResult.error) setMsg("Seu perfil foi carregado, mas a lista de botões está indisponível. Atualize a página antes de configurar os botões.");
+      if (actionResult.error) { setMessageError(true); setMsg("Seu perfil foi carregado, mas a lista de botões está indisponível. Atualize a página antes de configurar os botões."); }
       setLoading(false);
     })().catch(() => {
-      if (alive) { setMsg("Não foi possível carregar seu perfil. Atualize a página para tentar novamente."); setLoading(false); }
+      if (alive) { setMessageError(true); setMsg("Não foi possível carregar seu perfil. Atualize a página para tentar novamente."); setLoading(false); }
     });
     return () => { alive = false; };
   }, [router, sb]);
 
   async function upload(file: File | undefined, key: "logo" | "cover") {
     if (!file || !id || uploading || saving || !canEdit) return;
-    setMsg("");
+    setMsg(""); setMessageError(false);
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
-      setMsg("Formato inválido. Use PNG, JPG ou WEBP."); return;
+      setMessageError(true); setMsg("Formato inválido. Escolha uma imagem PNG, JPG ou WEBP."); return;
     }
-    if (file.size > 6 * 1024 * 1024) { setMsg("A imagem deve ter no máximo 6 MB."); return; }
+    if (!file.size || file.size > 6 * 1024 * 1024) { setMessageError(true); setMsg("Escolha uma imagem válida de até 6 MB."); return; }
     setUploading(key);
     try {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(-80);
@@ -96,19 +100,19 @@ export default function Editor() {
       const result = await sb.storage.from("company-assets").upload(path, file, {
         upsert: false, contentType: file.type, cacheControl: "3600",
       });
-      if (result.error) throw new Error(result.error.message);
+      if (result.error) throw new Error("Não foi possível enviar a imagem. Verifique sua conexão e tente novamente.");
       const url = sb.storage.from("company-assets").getPublicUrl(path).data.publicUrl;
       setF(current => ({ ...current, [key]: url }));
       setMsg("Imagem enviada. Salve as alterações para publicar.");
     } catch (error) {
-      setMsg(error instanceof Error ? error.message : "Não foi possível enviar a imagem. Tente novamente.");
+      setMessageError(true); setMsg(error instanceof Error ? error.message : "Não foi possível enviar a imagem. Tente novamente.");
     } finally { setUploading(""); }
   }
 
   async function save() {
     if (!id || saving || uploading || !canEdit) return;
-    if (!f.name.trim()) { setMsg("Informe o nome da empresa."); return; }
-    setSaving(true); setMsg("");
+    if (!f.name.trim()) { setNameError(true); setMessageError(true); setMsg("Informe o nome da empresa antes de salvar."); nameInput.current?.focus(); return; }
+    setNameError(false); setSaving(true); setMsg(""); setMessageError(false);
     const draft = { ...f };
     try {
       const company = await sb.from("companies").update({
@@ -120,27 +124,52 @@ export default function Editor() {
         phone_enabled: draft.phoneEnabled, whatsapp_enabled: draft.whatsappEnabled,
         updated_at: new Date().toISOString(),
       }).eq("id", id).select("id").single();
-      if (company.error) throw new Error(company.error.message);
+      if (company.error) throw new Error("Não foi possível salvar a página. Suas alterações continuam na prévia para tentar novamente.");
       const profile = await sb.from("profiles").upsert({
         company_id: id, display_name: draft.name.trim(), tagline: draft.description.trim() || null,
         avatar_url: draft.logo || null, secondary_image_url: draft.cover || null,
         updated_at: new Date().toISOString(),
       }, { onConflict: "company_id" });
-      if (profile.error) throw new Error("Os dados da empresa foram salvos, mas o perfil não foi atualizado. Tente salvar novamente. " + profile.error.message);
+      if (profile.error) throw new Error("Os dados da empresa foram salvos, mas a publicação do perfil não foi concluída. Clique em Salvar alterações para tentar novamente.");
       setSavedState(JSON.stringify(draft));
       setMsg("Alterações salvas. Sua página pública está atualizada.");
     } catch (error) {
-      setMsg(error instanceof Error ? error.message : "Não foi possível salvar. Suas alterações continuam na prévia para tentar novamente.");
+      setMessageError(true); setMsg(error instanceof Error ? error.message : "Não foi possível salvar. Suas alterações continuam na prévia para tentar novamente.");
     } finally { setSaving(false); }
   }
 
   const selectedTemplate = getSegmentTemplate(selectedSegment);
   const suggestedActions = selectedTemplate && actionsReady ? missingTemplateActions(selectedTemplate, actions, f) : [];
   const dirty = Boolean(savedState && savedState !== JSON.stringify(f));
+  useEffect(() => {
+    if (!dirty) return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    const confirmInternalNavigation = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || !(event.target instanceof Element)) return;
+      const link = event.target.closest<HTMLAnchorElement>("a[href]");
+      if (!link || link.hasAttribute("download") || (link.target && link.target !== "_self")) return;
+      const destination = new URL(link.href, window.location.href);
+      // Scrolling to the preview and opening another tab keep the current draft.
+      // Full navigations outside the app are covered by beforeunload below.
+      if (destination.origin !== window.location.origin || (destination.pathname === window.location.pathname && destination.search === window.location.search)) return;
+      if (!window.confirm("Suas alterações ainda não foram salvas. Sair sem salvar?")) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    document.addEventListener("click", confirmInternalNavigation, true);
+    return () => {
+      window.removeEventListener("beforeunload", warnBeforeLeaving);
+      document.removeEventListener("click", confirmInternalNavigation, true);
+    };
+  }, [dirty]);
+  useEffect(() => { if (msg && messageError && !nameError) feedback.current?.focus(); }, [msg, messageError, nameError]);
 
   function applyTemplate() {
     if (!selectedTemplate || saving || uploading || !canEdit) return;
     setF(current => applySegmentDraft(current, selectedTemplate, replaceDescription));
+    setMessageError(false);
     setReplaceDescription(false);
     setMsg("Modelo " + selectedTemplate.name + " aplicado à prévia. Revise e salve para publicar. Seus contatos, imagens e botões foram preservados.");
   }
@@ -156,15 +185,15 @@ export default function Editor() {
         <div className="section-kicker"><span className="live-dot"/> PERSONALIZAÇÃO</div>
         <div className="hub-title"><div><h1>Minha página</h1><p>Escolha um modelo, ajuste sua identidade e acompanhe a prévia antes de publicar.</p></div></div>
         <div className="page-toolbar editor-toolbar">
-          <span className="editor-save-state" role="status">{loading ? "Carregando sua página…" : !id ? "Dados indisponíveis" : uploading ? "Enviando imagem…" : dirty ? "Alterações não salvas" : "Tudo salvo"}</span>
+          <span className={"editor-save-state" + (dirty ? " is-unsaved" : "")} role="status" aria-live="polite">{loading ? "Carregando sua página…" : !id ? "Dados indisponíveis" : saving ? "Salvando sua página…" : uploading ? "Enviando imagem…" : dirty ? "Alterações não salvas" : "Tudo salvo"}</span>
           <a className="premium-btn" href="#editor-preview"><Smartphone size={15}/> Ver prévia</a>
           <button className="premium-btn premium-btn-dark" onClick={save} disabled={saving || loading || !!uploading || !id || !dirty || !canEdit}>
             {saving ? <LoaderCircle size={15} className="spin"/> : <Save size={15}/>} {saving ? "Salvando…" : "Salvar alterações"}
           </button>
         </div>
         {!loading && id && !canEdit && <p className="notice">Seu acesso permite consultar esta página. Peça a um administrador da empresa para editar.</p>}
-        {msg && <div className="editor-message" role="status">{msg}</div>}
-        {loading ? <div className="editor-loading"><LoaderCircle className="spin"/> Carregando seu perfil...</div> : (
+        {msg && <div id="editor-feedback" ref={feedback} tabIndex={-1} className={"editor-message" + (messageError ? " is-error" : "")} role={messageError ? "alert" : "status"}>{msg}</div>}
+        {loading ? <div className="editor-loading" role="status"><LoaderCircle className="spin" aria-hidden="true"/> Carregando seu perfil…</div> : !id ? <div className="workspace-state"><h2>Vamos tentar carregar sua página novamente.</h2><p>Seu conteúdo permanece salvo. Atualize a tela para continuar a edição.</p><button type="button" className="premium-btn" onClick={() => window.location.reload()}>Tentar novamente</button></div> : (
           <div className="editor-premium-layout">
             <fieldset className="editor-controls" disabled={!canEdit || saving || !!uploading}>
               <section className="editor-section segment-section" id="modelos">
@@ -190,16 +219,16 @@ export default function Editor() {
                     <b>Botões sugeridos</b>
                     <div className="segment-suggestion-tags">{selectedTemplate.suggestedActions.map(suggestion=><span key={suggestion.type}>{suggestion.label}</span>)}</div>
                     <p>{!actionsReady ? "Não foi possível conferir os botões existentes. Atualize a página antes de configurar novas sugestões." : suggestedActions.length ? "Configure os destinos reais em Botões. Os tipos que você já utiliza não serão sugeridos novamente." : "Você já utiliza todos os tipos de botão deste modelo. Edite-os em Botões quando precisar."}</p>
-                    <Link href={actionsReady ? "/dashboard/actions?template=" + selectedTemplate.id : "/dashboard/actions"} className="segment-actions-link" onClick={event => { if (dirty && !confirm("Você tem alterações na prévia que ainda não foram salvas. Sair sem publicar essas alterações?")) event.preventDefault(); }}>{actionsReady && suggestedActions.length ? "Configurar botões sugeridos" : "Gerenciar meus botões"} <ExternalLink size={14}/></Link>
+                    <Link href={actionsReady ? "/dashboard/actions?template=" + selectedTemplate.id : "/dashboard/actions"} className="segment-actions-link">{actionsReady && suggestedActions.length ? "Configurar botões sugeridos" : "Gerenciar meus botões"} <ExternalLink size={14}/></Link>
                   </div>
                 </div> : <p className="segment-intro">Restaurante, salão, oficina, loja ou profissional autônomo: escolha uma base pronta ou continue personalizando sua página. Seus dados atuais são preservados.</p>}
               </section>
 
               <section className="editor-section">
                 <div className="editor-section-heading"><span>01</span><div><b>Informações da empresa</b><small>Apresente sua marca com clareza.</small></div></div>
-                <label className="premium-field">Nome da empresa<input value={f.name} maxLength={80} onChange={e=>set("name",e.target.value)} placeholder="Ex.: Lux Tintas"/></label>
-                <label className="premium-field">Descrição<textarea value={f.description} maxLength={240} onChange={e=>set("description",e.target.value)} placeholder="Conte em poucas palavras o que sua empresa oferece."/></label>
-                <div className="editor-char-count">{f.description.length}/240 caracteres</div>
+                <label className="premium-field" htmlFor="company-name">Nome da empresa<input id="company-name" ref={nameInput} value={f.name} maxLength={80} autoComplete="organization" aria-invalid={nameError || undefined} aria-describedby={nameError ? "editor-feedback" : undefined} onChange={e=>{ if (nameError) { setNameError(false); setMessageError(false); setMsg(""); } set("name",e.target.value); }} placeholder="Ex.: Lux Tintas"/></label>
+                <div className="premium-field"><label htmlFor="company-description">Descrição</label><textarea id="company-description" value={f.description} maxLength={240} aria-describedby="company-description-count" onChange={e=>set("description",e.target.value)} placeholder="Conte em poucas palavras o que sua empresa oferece."/></div>
+                <div id="company-description-count" className="editor-char-count">{f.description.length}/240 caracteres · uma apresentação curta ajuda seu cliente a decidir</div>
               </section>
 
               <section className="editor-section">
@@ -223,9 +252,10 @@ export default function Editor() {
 
               <section className="editor-section" id="contatos">
                 <div className="editor-section-heading"><span>04</span><div><b>Formas de contato</b><small>Escolha quais contatos aparecem no perfil.</small></div></div>
-                <label className="premium-field">Telefone<input value={f.phone} onChange={e=>set("phone",e.target.value)} placeholder="(61) 99999-9999"/></label>
+                <label className="premium-field">Telefone<input type="tel" inputMode="tel" autoComplete="tel" maxLength={32} value={f.phone} onChange={e=>set("phone",e.target.value)} placeholder="(61) 99999-9999"/></label>
                 <Toggle checked={f.phoneEnabled} onChange={v=>set("phoneEnabled",v)} title="Exibir opção de ligação"/>
-                <label className="premium-field">WhatsApp<input value={f.whatsapp} onChange={e=>set("whatsapp",e.target.value)} placeholder="5561999999999"/></label>
+                <label className="premium-field">WhatsApp<input type="tel" inputMode="tel" maxLength={32} value={f.whatsapp} onChange={e=>set("whatsapp",e.target.value)} placeholder="5561999999999" aria-describedby="whatsapp-number-help"/></label>
+                <p id="whatsapp-number-help" className="workspace-field-help">Inclua o DDD. Para números de fora do Brasil, informe também o código do país.</p>
                 <Toggle checked={f.whatsappEnabled} onChange={v=>set("whatsappEnabled",v)} title="Exibir botão do WhatsApp"/>
               </section>
 
@@ -260,7 +290,7 @@ export default function Editor() {
 }
 
 function UploadField({title,hint,image,round,onChange,uploading}:{title:string;hint:string;image:string;round?:boolean;onChange:(file:File|undefined)=>void;uploading:boolean}) {
-  return <label className="editor-upload-field"><span className={"editor-upload-preview "+(round?"round":"")}>{image?<img src={image} alt={title}/>:<ImagePlus size={22}/>}</span><b>{title}</b><small>{hint}</small><span className="premium-btn">{uploading?<LoaderCircle size={14} className="spin"/>:<ImagePlus size={14}/>} {uploading?"Enviando...":"Escolher imagem"}</span><input type="file" accept="image/png,image/jpeg,image/webp" hidden disabled={uploading} onChange={(e:ChangeEvent<HTMLInputElement>)=>{onChange(e.target.files?.[0]);e.currentTarget.value="";}}/></label>;
+  return <label className="editor-upload-field"><span className={"editor-upload-preview "+(round?"round":"")}>{image?<img src={image} alt={title}/>:<ImagePlus size={22}/>}</span><b>{title}</b><small>{hint}</small><span className="premium-btn">{uploading?<LoaderCircle size={14} className="spin"/>:<ImagePlus size={14}/>} {uploading?"Enviando…":"Escolher imagem"}</span><input className="workspace-file-input" type="file" aria-label={"Escolher " + title.toLocaleLowerCase("pt-BR")} accept="image/png,image/jpeg,image/webp" disabled={uploading} onChange={(e:ChangeEvent<HTMLInputElement>)=>{onChange(e.target.files?.[0]);e.currentTarget.value="";}}/></label>;
 }
 function ColorField({title,value,onChange}:{title:string;value:string;onChange:(value:string)=>void}) {
   return <label className="premium-color-field"><span>{title}</span><input type="color" value={value} onChange={e=>onChange(e.target.value)}/><code>{value.toUpperCase()}</code></label>;

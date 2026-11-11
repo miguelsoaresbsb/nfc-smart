@@ -25,14 +25,15 @@ export default async function ResetPassword({ searchParams }: { searchParams: Pr
     catch { valid = false; }
   }
   return <main className="premium-shell auth-premium">
-    <header className="premium-nav"><Link href="/" className="brand"><span className="brand-mark"><Wifi size={17}/></span><span>NFC<span>SMART</span></span></Link><Link href="/login" className="premium-btn">Login</Link></header>
-    <section className="auth-premium-wrap"><div className="auth-premium-card">
-      <span className="auth-premium-icon"><LockKeyhole size={22}/></span>
+    <a href="#main-content" className="site-skip-link">Ir para a redefinição de senha</a>
+    <header className="premium-nav"><Link href="/" className="brand" aria-label="NFC SMART — início"><span className="brand-mark"><Wifi size={17} aria-hidden="true"/></span><span>NFC<span>SMART</span></span></Link><Link href="/login" className="premium-btn">Login</Link></header>
+    <section className="auth-premium-wrap" aria-labelledby="reset-title"><div className="auth-premium-card" id="main-content" tabIndex={-1}>
+      <span className="auth-premium-icon"><LockKeyhole size={22} aria-hidden="true"/></span>
       <div className="section-kicker">RECUPERAÇÃO DE ACESSO</div>
-      <h1>{valid ? "Crie sua nova senha." : "Solicite um novo link."}</h1>
-      {valid ? <><p>Escolha a senha que você usará para entrar no NFC Smart.</p><PasswordForm/></> : <>
+      <h1 id="reset-title">{valid ? "Crie sua nova senha." : "Solicite um novo link."}</h1>
+      {valid ? <><p>Escolha uma senha exclusiva para entrar no NFC SMART.</p><PasswordForm/></> : <>
         <p>O link expirou, já foi utilizado ou não foi validado neste navegador. Solicite outro link e abra-o no mesmo navegador.</p>
-        <Link href="/recuperar-senha" className="premium-btn premium-btn-dark">Solicitar link de recuperação</Link>
+        <Link href="/recuperar-senha" className="premium-btn premium-btn-dark auth-submit">Solicitar link de recuperação</Link>
       </>}
     </div></section>
   </main>;

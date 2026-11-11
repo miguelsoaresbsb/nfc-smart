@@ -5,6 +5,8 @@ import { getAuthorizedAccess } from "@/lib/auth-guard";
 import { createClient } from "@/lib/supabase-server";
 import SetupProgress from "@/app/components/SetupProgress";
 import { analyticsWindow } from "@/lib/analytics";
+import { uniquePublicActions } from "@/lib/action-duplicates";
+import { publicActionTarget } from "@/lib/action-target";
 
 export const dynamic = "force-dynamic";
 
@@ -23,17 +25,20 @@ export default async function Dashboard() {
   const sb = await createClient();
   const { since, until } = analyticsWindow();
   const [buttonsResult, viewsResult, clicksResult] = await Promise.all([
-    sb.from("actions").select("id", { count: "exact", head: true }).eq("company_id", company.id).eq("enabled", true),
+    sb.from("actions").select("*").eq("company_id", company.id).eq("enabled", true),
     sb.from("analytics_events").select("id", { count: "exact", head: true }).eq("company_id", company.id).eq("event_type", "page_view").gte("created_at", since).lte("created_at", until),
     sb.from("analytics_events").select("id", { count: "exact", head: true }).eq("company_id", company.id).eq("event_type", "action_click").gte("created_at", since).lte("created_at", until),
   ]);
   const active = access.hasPaidAccess;
-  const directContacts = Number(Boolean(company.phone_enabled && company.phone?.trim())) + Number(Boolean(company.whatsapp_enabled && company.whatsapp?.trim()));
-  const buttons = buttonsResult.error ? null : (buttonsResult.count || 0) + directContacts;
+  const directContacts = Number(Boolean(company.phone_enabled !== false && publicActionTarget("phone", company.phone || ""))) + Number(Boolean(company.whatsapp_enabled !== false && publicActionTarget("whatsapp", company.whatsapp || "")));
+  const visibleActions = uniquePublicActions(buttonsResult.data || [], { phone: company.phone, whatsapp: company.whatsapp, phoneEnabled: company.phone_enabled, whatsappEnabled: company.whatsapp_enabled }).filter(action => action.type === "pix" || action.type === "wifi" || Boolean(publicActionTarget(action.type, action.url)));
+  const buttons = buttonsResult.error ? null : visibleActions.length + directContacts;
   const readyIdentity = Boolean(company.description?.trim());
   const next = !readyIdentity
     ? { title: "Dê a sua cara à página", text: "Comece com um modelo do seu segmento e personalize as informações da empresa.", href: "/dashboard/editor", label: "Personalizar minha página" }
-    : buttons === 0 || buttons === null
+    : buttons === null
+      ? { title: "Confira os botões da sua página", text: "Não conseguimos atualizar a contagem agora. Você pode consultar os botões já configurados antes de adicionar outro.", href: "/dashboard/actions", label: "Consultar meus botões" }
+    : buttons === 0
       ? { title: "Adicione seu primeiro botão", text: "Escolha o que seu cliente deve fazer: falar com você, ver seus produtos ou encontrar sua empresa.", href: "/dashboard/actions", label: "Configurar botões" }
       : !active
         ? { title: "Ative sua página para os clientes", text: "Sua empresa já foi aprovada. Confira a assinatura para liberar o acesso público.", href: "/dashboard/subscription", label: "Ver assinatura" }
@@ -46,6 +51,7 @@ export default async function Dashboard() {
     <SetupProgress step={active ? 3 : 2} complete={active}/>
     <section className="overview-next" aria-label="Próximo passo"><div><small>{active && readyIdentity && buttons ? "SUA PÁGINA ESTÁ NO AR" : "SEU PRÓXIMO PASSO"}</small><h2>{next.title}</h2><p>{next.text}</p></div><Link href={next.href} className="premium-btn premium-btn-dark">{next.label}<ArrowUpRight size={15}/></Link></section>
     <div className="dashboard-section-heading"><div><span>ACOMPANHAMENTO</span><h2>Um olhar sobre os últimos 30 dias</h2></div></div>
+    {(viewsResult.error || clicksResult.error) && <p className="notice" role="alert">Não conseguimos atualizar os resultados agora. <a href="/dashboard" className="overview-retry">Carregar resultados novamente</a>.</p>}
     <div className="overview-stats"><article className="overview-stat"><span>Visitas à página</span><strong>{formatted(viewsResult)}</strong><small>Aberturas da sua página pública</small></article><article className="overview-stat"><span>Interações com botões</span><strong>{formatted(clicksResult)}</strong><small>Atalhos acionados pelos visitantes</small></article><article className="overview-stat"><span>Botões e contatos ativos</span><strong>{buttons === null ? "—" : buttons}</strong><small>Atalhos disponíveis na página</small></article></div>
     <Link href="/dashboard/analytics" className="overview-results-link"><BarChart3 size={15}/>Ver resultados e evolução<ArrowUpRight size={14}/></Link>
     <div className="dashboard-section-heading"><div><span>GERENCIE SUA PRESENÇA</span><h2>O essencial, sempre à mão</h2></div></div>

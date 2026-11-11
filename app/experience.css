@@ -1,0 +1,12 @@
+/* Shared accessibility defaults. Individual screens own their layout. */
+html{scroll-padding-top:96px;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{line-height:1.5}
+:where(button,a,input,textarea,select,summary):focus-visible{outline:3px solid #356447;outline-offset:4px}
+:where(button,input,textarea,select){touch-action:manipulation}
+:where(button,a){-webkit-tap-highlight-color:#35644726}
+:where(button):disabled{cursor:not-allowed}
+.site-skip-link{position:fixed;left:16px;top:12px;z-index:300;transform:translateY(-180%);padding:12px 18px;border-radius:12px;background:#172c20;color:#fff;font-weight:700;min-height:48px;box-shadow:0 8px 30px #0003}
+.site-skip-link:focus{transform:translateY(0)}
+.system-message{max-width:520px}.system-message h1{font-size:clamp(28px,6vw,38px);line-height:1.16}.system-message>p{font-size:16px;line-height:1.75;color:#56634e}.system-message .premium-btn{min-height:48px;justify-content:center;font-size:16px}.overview-retry{display:inline-flex;align-items:center;min-height:44px;text-decoration:underline;text-underline-offset:3px;font-weight:700}
+@media(prefers-reduced-motion:reduce){html:focus-within{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media(forced-colors:active){:where(button,a,input,textarea,select,summary):focus-visible{outline:3px solid Highlight}.site-skip-link{border:2px solid LinkText}}

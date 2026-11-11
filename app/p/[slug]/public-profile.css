@@ -1,0 +1,66 @@
+/* Visitor-facing controls keep the company's colors while sharing readable sizing. */
+.bio{padding:24px 16px calc(28px + env(safe-area-inset-bottom));line-height:1.55}
+.bio .bio-card{width:min(560px,100%)}
+.bio .bio-cover{height:210px;border-radius:26px}
+.bio .bio-avatar{margin-bottom:18px}
+.bio .bio-avatar>span{font-size:36px}
+.bio h1{font-size:clamp(28px,5vw,36px);line-height:1.15;letter-spacing:-.045em;overflow-wrap:anywhere}
+.bio .bio-card>p{max-width:44ch;margin:14px auto 0;font-size:16px;line-height:1.65;overflow-wrap:anywhere}
+.bio .bio-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:28px}
+.bio .bio-grid .bio-action{min-width:0;min-height:86px;padding:18px 16px;border-radius:18px;grid-template-columns:30px minmax(0,1fr) 14px;gap:12px;box-shadow:0 8px 24px #0000000c;transform:none}
+.bio .bio-grid .bio-action b{font-size:16px;line-height:1.35;font-weight:700;overflow-wrap:anywhere}
+.bio .bio-grid .bio-action>span{font-size:25px;display:grid;place-items:center}
+.bio .bio-grid .bio-action>span.bio-pix-symbol{font-size:12px;font-weight:900;letter-spacing:-.02em}
+.bio .bio-grid .bio-action small{font-size:17px;opacity:.8}
+.bio .bio-grid .bio-phone-contact{display:flex;gap:0;padding:0}
+.bio .bio-phone-link{display:flex;min-height:86px;gap:12px;padding:18px 16px;border-radius:0;box-shadow:none;transform:none}
+.bio .bio-phone-copy{min-height:48px;min-width:52px;border-radius:0}
+.bio .contact-copy-feedback{font-size:14px;color:var(--secondary)}
+.bio .bio-grid :is(a,button):focus-visible{outline:3px solid var(--ink);outline-offset:4px}
+.bio .bio-card>footer{font-size:12px;line-height:1.5;letter-spacing:.04em;margin:32px 12px 10px}
+.bio .empty{font-size:16px;line-height:1.6}
+.bio .pix-modal-backdrop{padding:20px;overscroll-behavior:contain}
+.bio .pix-modal{width:min(460px,100%);max-height:calc(100dvh - 40px);padding:32px 28px 26px;border-radius:26px;overflow-x:hidden;overscroll-behavior:contain;scroll-padding-block:24px;text-align:center}
+.bio .pix-close{top:12px;right:12px;display:grid;place-items:center;width:48px;height:48px;min-width:48px;min-height:48px;padding:0;border:1px solid #e1e5e0;border-radius:50%;background:#fff;color:#344039;font-size:30px;line-height:1}
+.bio .pix-modal :is(button,a):focus-visible{outline:3px solid #20583f;outline-offset:3px}
+.bio .pix-modal-icon{margin-top:8px;margin-bottom:18px}
+.bio .pix-modal h2{font-size:clamp(27px,5vw,34px);line-height:1.15;letter-spacing:-.04em;margin:10px 0 16px;padding-inline:6px;overflow-wrap:anywhere}
+.bio .pix-modal p{color:#526057!important;font-size:15px;line-height:1.6;overflow-wrap:anywhere}
+.bio .pix-modal .eyebrow{font-size:12px;font-weight:800;color:#526057!important;letter-spacing:.14em;margin:8px 0}
+.bio .pix-modal .pix-receiver{font-size:17px;color:#263c2e!important;margin:8px 0}
+.bio .pix-amount{font-size:32px;line-height:1.2;margin:14px 0}
+.bio .public-dialog-intro{margin:12px 0 20px}
+.bio .pix-qr,.bio .wifi-qr-image{width:min(260px,100%);height:auto;aspect-ratio:1;padding:12px;margin:20px auto;object-fit:contain;border-radius:18px}
+.bio .pix-copy,.bio .wifi-copy-password{min-height:52px;padding:14px 16px;font-size:16px;line-height:1.4;border-radius:14px}
+.bio .pix-key-box{margin-top:18px;padding:18px 16px;border:1px solid #e4e8e2;background:#f5f7f3;border-radius:16px}
+.bio .pix-key-box small{font-size:12px;letter-spacing:.06em;color:#526057;margin-bottom:8px}
+.bio .pix-key-box strong{font-size:16px;line-height:1.55;overflow-wrap:anywhere;user-select:text}
+.bio .pix-modal .public-copy-status{font-size:14px;color:#20583f!important;margin:14px 0 0;text-align:left}
+.bio .public-copy-status:empty{display:none}
+.bio .pix-modal .public-copy-status.is-error{padding:12px 14px;border-radius:12px;background:#fff0ed;color:#923b2b!important}
+.bio .public-manual-copy{display:grid;gap:8px;text-align:left;margin-top:14px;font-size:14px;font-weight:700;color:#263c2e}.bio .public-manual-copy textarea{width:100%;min-height:100px;padding:13px;border:1px solid #b7c7b4;border-radius:12px;background:#fff;color:#172e20;font:400 16px/1.55 ui-monospace,monospace;resize:vertical;overflow-wrap:anywhere}.bio .public-manual-copy textarea:focus-visible{outline:3px solid #20583f;outline-offset:3px}
+.bio .pix-modal .public-dialog-tip{padding:14px 16px;border-radius:14px;background:#f4f6f2;text-align:left;margin:20px 0 0;font-size:14px}
+.bio .wifi-action-icon,.bio .wifi-symbol{animation:none}
+.bio .wifi-hero{width:64px;height:64px;margin:8px auto 18px}
+.bio .wifi-symbol{width:64px;height:64px;border-radius:20px;box-shadow:none}
+.bio .wifi-subtitle{font-size:15px;max-width:36ch;margin-bottom:22px}
+.bio .wifi-details{gap:10px;margin:20px 0}
+.bio .wifi-detail{padding:15px;border-radius:15px;gap:13px;animation:none;background:#f7f8f5}
+.bio .wifi-detail small{font-size:12px;line-height:1.4;letter-spacing:.07em;color:#526057}
+.bio .wifi-detail strong{font-size:16px;line-height:1.5;color:#172e20;overflow-wrap:anywhere;user-select:text}
+.bio .wifi-qr-modal{padding-top:24px}
+.bio .wifi-qr-badge{font-size:13px;letter-spacing:0;padding:8px 14px}
+@media(hover:hover){.bio .bio-grid .bio-action:hover{transform:translateY(-2px)}.bio .bio-phone-link:hover{transform:none}.bio .pix-close:hover{background:#f1f5ef}}
+@media(max-width:560px){
+  .bio{padding-top:16px}
+  .bio .bio-cover{height:180px;border-radius:22px}
+  .bio .bio-grid{grid-template-columns:minmax(0,1fr);gap:10px;margin-top:24px}
+  .bio .bio-grid .bio-action,.bio .bio-phone-link{min-height:72px}
+  .bio .bio-grid .bio-action{padding:16px 18px}
+  .bio .bio-grid .bio-phone-contact{padding:0}
+  .bio .bio-phone-link{padding:16px 18px}
+  .bio .pix-modal-backdrop{padding:16px}
+  .bio .pix-modal{max-height:calc(100dvh - 32px);padding:28px 20px 24px;border-radius:22px}
+  .bio .pix-modal h2{font-size:29px}
+}
+@media(max-height:540px){.bio .pix-modal-backdrop{padding:12px}.bio .pix-modal{max-height:calc(100dvh - 24px)}}
