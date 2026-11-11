@@ -7,6 +7,7 @@ Entrega de 11 de novembro de 2026. Site: https://nfc-smart-one.vercel.app
 - Campos de texto e seletores com fonte de pelo menos 16px, sem bloquear o zoom do navegador. Os campos de autenticação têm 52px de altura.
 - Controles de fechar, copiar, ordenar e navegar com área de toque de pelo menos 44px. Os botões de fechar PIX e Wi-Fi têm 48px.
 - Navegação inferior para as cinco áreas do cliente com assinatura. Assinatura e saída ficam nas opções da conta; clientes sem assinatura veem apenas o início e a assinatura.
+- No rodapé móvel, a área de compartilhamento aparece como “Link e QR”, evitando quebrar uma palavra longa em telas estreitas. O destino e o nome acessível continuam sendo Compartilhar.
 - Mostrar/ocultar senha com rótulo acessível, suporte a preenchimento automático e preservação do que já foi digitado.
 - Erros em português com foco de teclado, indicação de carregamento e liberação do botão para tentar novamente. Falhas de conexão preservam os campos preenchidos.
 - Atalhos nativos para pular a navegação, foco visível e respeito à preferência por movimento reduzido.

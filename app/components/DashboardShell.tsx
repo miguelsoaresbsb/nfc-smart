@@ -73,7 +73,7 @@ export default function DashboardShell({ children, isAdmin, company, hasPaidAcce
       <div id="main-content" tabIndex={-1}>{children}</div>
     </div>
     <nav className="workspace-mobile-nav" aria-label="Menu do painel no celular" style={{ gridTemplateColumns: `repeat(${mobileLinks.length}, minmax(0, 1fr))` }}>
-      {mobileLinks.map(({ href, label, icon: Icon }) => <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined} className={pathname === href ? "is-active" : undefined}><Icon size={21} aria-hidden="true"/><span>{label}</span></Link>)}
+      {mobileLinks.map(({ href, label, icon: Icon }) => <Link key={href} href={href} aria-label={label} aria-current={pathname === href ? "page" : undefined} className={pathname === href ? "is-active" : undefined}><Icon size={21} aria-hidden="true"/><span>{href === "/dashboard/nfc" ? "Link e QR" : label}</span></Link>)}
     </nav>
   </div>;
 }
