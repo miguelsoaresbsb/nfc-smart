@@ -60,8 +60,13 @@ export default function SharePage() {
     if (!mutable || !company || pageQrExists) return;
     setBusy("generate"); setMessage("");
     try {
-      const dataUrl = await QRCode.toDataURL(publicUrl, { errorCorrectionLevel: "H", margin: 2, width: 900, color: { dark: "#111111", light: "#FFFFFF" } });
-      await storeQr(await (await fetch(dataUrl)).blob(), "Página NFC - " + company.name, publicUrl);
+      const canvas = document.createElement("canvas");
+      await QRCode.toCanvas(canvas, publicUrl, { errorCorrectionLevel: "H", margin: 2, width: 900, color: { dark: "#111111", light: "#FFFFFF" } });
+      const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(image => {
+        if (image) resolve(image);
+        else reject(new Error("Não foi possível gerar a imagem do QR Code. Tente novamente."));
+      }, "image/png"));
+      await storeQr(blob, "Página NFC - " + company.name, publicUrl);
       setMessage("QR Code da página gerado. Ele está disponível abaixo para baixar.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível gerar o QR Code."); }
     finally { setBusy(""); }
