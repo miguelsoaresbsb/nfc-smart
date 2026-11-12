@@ -24,7 +24,7 @@ Entrega de 11 de novembro de 2026. Site: https://nfc-smart-one.vercel.app
 - Botões demonstrativos explicam o que será configurado, sem enviar mensagens ou realizar pagamentos.
 - Caminho comercial explícito: cadastro e confirmação de e-mail, aprovação da empresa, pagamento no painel e liberação dos recursos.
 - Uma chamada de ação consistente: solicitar cadastro. A página de vendas não encaminha um cliente ainda não aprovado diretamente ao checkout.
-- Valores existentes apresentados separadamente: plaquinha física por R$ 80,00, pagamento único; plataforma por R$ 29,90 ao mês. Preços de exibição centralizados para evitar divergências entre a página pública e a assinatura.
+- Valores existentes apresentados separadamente: plaquinha física por R$ 49,90, pagamento único; plataforma por R$ 29,90 ao mês. Preços de exibição centralizados para evitar divergências entre a página pública e a assinatura.
 - Produção, entrega e eventual envio da plaquinha são tratados na contratação física. O checkout do painel corresponde à mensalidade.
 - Perguntas frequentes acessíveis sobre NFC, QR Code, compatibilidade, modelos, edição, pagamento e cancelamento.
 - Ícone da marca e imagem de compartilhamento. Links das páginas de empresas usam o nome, a descrição e a logo da própria empresa.
