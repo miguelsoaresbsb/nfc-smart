@@ -7,7 +7,7 @@ SaaS para páginas permanentes vinculadas a TAGs NFC. Next.js + Supabase + Verce
 - QR Codes de PIX e Wi-Fi são enviados como imagens existentes. O sistema também gera QR Codes para o endereço permanente da página NFC.
 - A URL pública é permanente.
 - Os dados de cada empresa são isolados por RLS; visitantes só acessam páginas com assinatura vigente.
-- Modelo comercial: R$ 80,00 pela plaquinha física NFC, cobrada separadamente, e R$ 29,90/mês pelo acesso à plataforma digital.
+- Modelo comercial: R$ 49,90 pela plaquinha física NFC, cobrada separadamente, e R$ 29,90/mês pelo acesso à plataforma digital.
 - O acesso depende da aprovação da empresa e do pagamento da assinatura. Cancelar renovações preserva o período pago; reembolso/chargeback revoga o acesso.
 
 ## Desenvolvimento e verificações
