@@ -7,6 +7,7 @@ type RecordValue = Record<string, unknown>;
 type Database = { rpc: (name: string, args: RecordValue) => PromiseLike<{ error: { message: string } | null }> };
 const paidEvents = new Set(["purchase_approved", "subscription_renewed", "subscription_resumed", "subscription_late_recovered"]);
 const supportedEvents = new Set([...paidEvents, "subscription_canceled", "subscription_paused", "refund", "chargeback", "subscription_late", "subscription_renewal_refused"]);
+const monitoredFailureReasons = new Set(["approved_company_not_found", "local_subscription_not_found", "active_contract_already_linked", "invalid_payment_amount"]);
 const MAX_BYTES = 1024 * 1024;
 function object(value: unknown): value is RecordValue { return value !== null && typeof value === "object" && !Array.isArray(value); }
 function identifier(value: unknown) {
@@ -18,6 +19,22 @@ function money(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
 }
 export function readCaktoBody(request: Request) { return readLimitedBody(request, MAX_BYTES); }
+
+/** Whitelisted, authenticated diagnostics. Never forward a provider body or identity. */
+export function caktoFailureDiagnostic(event: string, source: unknown, config: CaktoConfig, error: unknown) {
+  if (!supportedEvents.has(event) || !object(source)) return null;
+  const product = object(source.product) ? source.product : {};
+  const subscription = object(source.subscription) ? source.subscription : {};
+  const safeId = (value: unknown) => {
+    const id = identifier(value);
+    return /^[A-Za-z0-9._:-]{1,200}$/.test(id) ? id : "";
+  };
+  const productId = safeId(product.id), orderId = safeId(source.id), contractId = safeId(subscription.id);
+  if (productId !== config.productId || !orderId || !contractId) return null;
+  const message = error instanceof Error ? error.message : "";
+  return { event_type: event, order_id: orderId, subscription_id: contractId, product_id: productId,
+    reason_code: monitoredFailureReasons.has(message) ? message : "processing_failed" };
+}
 
 function date(value: unknown): Date | null {
   if (typeof value !== "string" || !value.trim()) return null;
@@ -129,17 +146,34 @@ export async function handleCaktoWebhook(request: Request, config: CaktoConfig, 
   if (typeof payload.event !== "string" || !payload.event || payload.event.length > 100) return reply({ ok: false, error: "invalid_payload" }, 400);
   const records = Array.isArray(payload.data) ? payload.data : [payload.data];
   if (!records.length || records.length > 100 || records.some(record => !object(record))) return reply({ ok: false, error: "invalid_payload" }, 400);
+  let failedSource: unknown;
+  let db: Database | undefined;
   try {
-    const normalized = records.map(record => normalizeCaktoOrder(payload.event as string, record, config)).filter(record => record !== null);
+    const normalized = [];
+    for (const source of records) {
+      failedSource = source;
+      const event = normalizeCaktoOrder(payload.event, source, config);
+      if (event) normalized.push({ event, source });
+    }
     if (!normalized.length) return reply({ ok: true, processed: 0, ignored: records.length });
-    const db = database();
-    for (const event of normalized) {
+    db = database();
+    for (const { event, source } of normalized) {
+      failedSource = source;
       const { error } = await db.rpc("process_cakto_event", { p_event: event });
       if (error) throw new Error(error.message);
     }
     return reply({ ok: true, processed: normalized.length, ignored: records.length - normalized.length });
   } catch (error) {
-    console.error("Cakto webhook processing failed", error instanceof Error ? error.message : "unknown_error");
+    const diagnostic = caktoFailureDiagnostic(payload.event, failedSource, config, error);
+    if (diagnostic) {
+      try {
+        const result = await (db || database()).rpc("record_cakto_failure", { p_failure: diagnostic });
+        if (result.error) console.error("Cakto monitoring record unavailable");
+      } catch { console.error("Cakto monitoring record unavailable"); }
+    }
+    // A monitoring outage never changes payment handling or turns a failed
+    // payment into a success. The provider receives 503 and can retry safely.
+    console.error("Cakto webhook processing failed", diagnostic?.reason_code || "processing_failed");
     return reply({ ok: false, error: "processing_failed" }, 503);
   }
 }

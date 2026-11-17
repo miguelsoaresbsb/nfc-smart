@@ -1,0 +1,61 @@
+.operation-panel { min-width: 0; scroll-margin-top: 100px; }
+.operation-heading { flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.operation-heading > div { flex: 1; min-width: min(260px, 100%); }
+.operation-heading h2 { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+.operation-heading h2 svg { flex-shrink: 0; }
+.operation-heading p, .operation-explanation { font-size: 13px; line-height: 1.7; color: #606c58; max-width: 780px; }
+.operation-count { border-radius: 99px; padding: 3px 9px; color: #805428; background: #fff2da; font-size: 13px; }
+.operation-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 20px 0 16px; }
+.operation-toolbar label { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 12px; color: #59674e; }
+.operation-toolbar select { max-width: 100%; min-height: 44px; border: 1px solid #d9e0d2; border-radius: 10px; background: #fff; padding: 10px; color: #283621; font-size: 14px; }
+.operation-toolbar > p, .operation-footnote { margin: 0; font-size: 11px; color: #69755f; line-height: 1.7; }
+.operation-error { display: flex; align-items: flex-start; gap: 9px; border: 1px solid #ebc6b9; background: #fff4ef; border-radius: 12px; color: #883e28; padding: 14px; font-size: 13px; line-height: 1.7; }
+.operation-error svg { flex-shrink: 0; margin-top: 2px; }
+.operation-notice { padding: 14px; border: 1px solid #d5e1ce; background: #f0f6eb; border-radius: 12px; font-size: 13px; line-height: 1.7; color: #3f5934; }
+.operation-alert-list { display: grid; gap: 13px; }
+.operation-alert { min-width: 0; border: 1px solid #e4dfd1; border-left: 4px solid #bea06b; border-radius: 14px; padding: 18px; }
+.operation-alert.is-critical { border-left-color: #b56d52; }
+.operation-alert-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.operation-alert h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.operation-alert > p { font-size: 13px; line-height: 1.7; color: #5c6854; }
+.operation-alert .operation-company { color: #26341f; font-weight: 700; margin-bottom: 4px; }
+.operation-state { font-size: 11px; font-weight: 700; padding: 5px 9px; border-radius: 99px; background: #fff1db; color: #825b29; }
+.operation-state.is-acknowledged { color: #4a6240; background: #edf3e8; }
+.operation-state.is-resolved { color: #5c6856; background: #f0f2ed; }
+.operation-alert dl { display: flex; flex-wrap: wrap; gap: 12px 25px; font-size: 11px; margin: 17px 0; }
+.operation-alert dl div { min-width: 125px; }
+.operation-alert dt { color: #6e7965; margin-bottom: 5px; }
+.operation-alert dd { margin: 0; color: #35442c; }
+.operation-alert details { font-size: 12px; color: #57654c; margin: 14px 0; }
+.operation-alert summary, .operation-funnel-help summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 8px; text-decoration: underline; text-underline-offset: 3px; }
+.operation-alert summary::before, .operation-funnel-help summary::before { content: "+"; font-weight: 700; }
+.operation-alert details[open] > summary::before, .operation-funnel-help[open] > summary::before { content: "−"; }
+.operation-alert code { overflow-wrap: anywhere; }
+.operation-empty { padding: 23px 15px; text-align: center; font-size: 13px; color: #637358; border: 1px dashed #d8e0d1; border-radius: 12px; }
+.operation-pagination { margin: 18px 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; }
+.operation-footnote { margin-top: 16px; }
+.operation-funnel { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 10px; list-style: none; padding: 0; margin: 20px 0; }
+.operation-funnel li { min-width: 0; border: 1px solid #dde5d7; border-radius: 15px; padding: 17px; background: #fafcf8; }
+.operation-stage-number { font-size: 11px; font-weight: 750; color: #7c906d; }
+.operation-funnel h3 { font-size: 12px; color: #435b36; margin: 9px 0; min-height: 32px; line-height: 1.5; }
+.operation-funnel strong { display: block; font-size: 31px; line-height: 1.2; color: #263b1c; }
+.operation-funnel p { font-size: 11px; line-height: 1.7; color: #63765a; }
+.operation-funnel small { display: block; font-size: 10px; color: #58744b; line-height: 1.6; }
+.operation-funnel-help { color: #53664a; font-size: 12px; line-height: 1.8; }
+.operation-panel button, .operation-panel select { min-height: 44px; }
+.operation-panel :is(button, select, summary):focus-visible { outline: 3px solid #607f50; outline-offset: 3px; }
+@media (max-width: 900px) { .operation-funnel { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media (max-width: 600px) {
+  .operation-heading > button { width: 100%; justify-content: center; }
+  .operation-toolbar { align-items: stretch; flex-direction: column; }
+  .operation-toolbar label { justify-content: space-between; }
+  .operation-toolbar select { flex: 1; min-width: 0; font-size: 16px; }
+  .operation-alert { padding: 14px; }
+  .operation-alert > button { width: 100%; justify-content: center; }
+  .operation-funnel { grid-template-columns: 1fr; gap: 9px; }
+  .operation-funnel li { display: grid; grid-template-columns: 25px minmax(0,1fr) auto; gap: 4px 8px; padding: 15px; }
+  .operation-stage-number { grid-column: 1; grid-row: 1; padding-top: 4px; }
+  .operation-funnel h3 { margin: 0; min-height: 0; grid-column: 2; grid-row: 1; font-size: 13px; }
+  .operation-funnel strong { grid-column: 3; grid-row: 1 / span 3; padding-left: 10px; align-self: center; font-size: 28px; }
+  .operation-funnel p, .operation-funnel small { grid-column: 2; margin: 0; }
+}

@@ -60,6 +60,11 @@ END $$;
 
 -- Subsequent paid/session simulations represent accounts that completed email verification.
 UPDATE auth.users SET email_confirmed_at=now() WHERE id IN ('d8aa5b44-3c99-44af-a001-000000000001','d8aa5b44-3c99-44af-a001-000000000002','d8aa5b44-3c99-44af-a001-000000000003');
+-- The administrator fixture has a live, verified second factor. All rows roll back.
+INSERT INTO auth.mfa_factors(id,user_id,friendly_name,factor_type,status,created_at,updated_at,secret)
+VALUES ('d8aa5b44-3c99-44af-a001-000000000301','d8aa5b44-3c99-44af-a001-000000000003','Paid regression only','totp','verified',now(),now(),'fixture-not-an-authenticator-secret');
+INSERT INTO auth.sessions(id,user_id,factor_id,aal,not_after)
+VALUES ('d8aa5b44-3c99-44af-a001-000000000302','d8aa5b44-3c99-44af-a001-000000000003','d8aa5b44-3c99-44af-a001-000000000301','aal2',now()+interval '1 day');
 
 SET LOCAL ROLE anon;
 DO $$ BEGIN
@@ -144,9 +149,10 @@ RESET ROLE;
 
 -- Platform administrator may service the account without granting customer access.
 SELECT set_config('request.jwt.claim.sub','d8aa5b44-3c99-44af-a001-000000000003',true);
-SELECT set_config('request.jwt.claims','{"sub":"d8aa5b44-3c99-44af-a001-000000000003"}',true);
+SELECT set_config('request.jwt.claims','{"sub":"d8aa5b44-3c99-44af-a001-000000000003","aal":"aal2","session_id":"d8aa5b44-3c99-44af-a001-000000000302"}',true);
 SET LOCAL ROLE authenticated;
 DO $$ DECLARE n integer; BEGIN
+  IF NOT private.is_platform_admin() THEN RAISE EXCEPTION 'Administrator fixture has no verified MFA session'; END IF;
   IF NOT private.can_use_company('d8aa5b44-3c99-44af-a001-000000000102') OR NOT private.can_edit_company('d8aa5b44-3c99-44af-a001-000000000102') THEN RAISE EXCEPTION 'Administrator lost account-service access'; END IF;
   UPDATE public.profiles SET display_name='Admin serviced pending account' WHERE company_id='d8aa5b44-3c99-44af-a001-000000000102'; GET DIAGNOSTICS n=ROW_COUNT;
   IF n<>1 THEN RAISE EXCEPTION 'Administrator could not service pending profile'; END IF;

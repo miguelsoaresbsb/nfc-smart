@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Building2, CheckCircle2, Clock3, ExternalLink, RefreshCw, Search, ShieldCheck, XCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
@@ -10,6 +11,9 @@ import {
   type AccessRequest, type AdminCompany, type AdminSubscription, type CompanyStatus,
 } from "@/lib/admin-data";
 import "./admin.css";
+import BillingAlertsPanel from "./components/BillingAlertsPanel";
+import SalesFunnelPanel from "./components/SalesFunnelPanel";
+import TagsPanel from "./components/TagsPanel";
 
 const companyLabels: Record<CompanyStatus, string> = {
   active: "Ativa", pending: "Aguardando pagamento", expired: "Vencida", canceled: "Cancelada",
@@ -31,6 +35,7 @@ export default function Admin() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  const [activeAlerts, setActiveAlerts] = useState(0);
   const mounted = useRef(true);
   const loadSequence = useRef(0);
 
@@ -127,6 +132,16 @@ export default function Admin() {
           <button className="premium-btn" onClick={() => { setMessage(""); void load(); }} disabled={loading || Boolean(busy)}><RefreshCw size={15} className={loading ? "spin" : undefined}/>{loading ? "Atualizando…" : "Atualizar"}</button>
         </div>
 
+        <nav className="admin-section-nav" aria-label="Seções da administração">
+          <a href="#admin-alerts">Alertas{activeAlerts > 0 && <span>{activeAlerts}</span>}</a>
+          <a href="#admin-funnel">Funil de vendas</a>
+          <a href="#admin-requests">Solicitações</a>
+          <a href="#admin-companies">Empresas</a>
+          <a href="#admin-tags">Plaquinhas</a>
+          <Link href="/seguranca-admin">Segurança da conta</Link>
+        </nav>
+        <BillingAlertsPanel refreshKey={updatedAt ?? 0} onActiveCountChange={setActiveAlerts}/>
+        <SalesFunnelPanel refreshKey={updatedAt ?? 0}/>
         <div className="admin-summary" aria-label="Resumo da plataforma">
           <a href="#admin-requests" onClick={() => setRequestFilter("pending")}><Clock3 size={19}/><span>Pedidos pendentes</span><strong>{updatedAt ? pending : "—"}</strong><small>Aguardando sua análise</small></a>
           <a href="#admin-companies" onClick={() => setCompanyFilter("active")}><CheckCircle2 size={19}/><span>Empresas ativas</span><strong>{updatedAt ? active : "—"}</strong><small>Página com assinatura vigente</small></a>
@@ -192,6 +207,7 @@ export default function Admin() {
           </div>
           <p className="admin-timezone-note">Datas no horário de Brasília. A situação considera o vencimento, mesmo quando o último status recebido ainda é “ativo”.</p>
         </section>
+        <TagsPanel companies={companies} refreshKey={updatedAt}/>
       </section>
     </main>
   );

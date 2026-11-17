@@ -6,6 +6,7 @@ SaaS para páginas permanentes vinculadas a TAGs NFC. Next.js + Supabase + Verce
 
 - QR Codes de PIX e Wi-Fi são enviados como imagens existentes. O sistema também gera QR Codes para o endereço permanente da página NFC.
 - A URL pública é permanente.
+- A administração exige senha e código de aplicativo autenticador (TOTP), com validação da sessão e do fator no banco.
 - Os dados de cada empresa são isolados por RLS; visitantes só acessam páginas com assinatura vigente.
 - Modelo comercial: R$ 49,90 pela plaquinha física NFC, cobrada separadamente, e R$ 29,90/mês pelo acesso à plataforma digital.
 - O acesso depende da aprovação da empresa e do pagamento da assinatura. Cancelar renovações preserva o período pago; reembolso/chargeback revoga o acesso.
@@ -58,6 +59,16 @@ O cliente usa um único menu: Visão geral, Minha página, Botões, Resultados e
 - Minha página reúne os modelos por segmento, temas visuais, informações e contatos. Os modelos são prévias até salvar e preservam conteúdo existente sem substituição explícita.
 - Botões usa um único formulário para criar e editar. A ordem é salva pelo RPC `reorder_company_actions`, com validação completa da empresa e dos IDs. As sugestões de modelo ignoram tipos já configurados e contatos diretos.
 - Compartilhar é o único lugar para copiar o endereço NFC, gerar o QR da página e enviar/baixar imagens de PIX e Wi-Fi. A rota antiga `/dashboard/qr-codes` redireciona para `/dashboard/nfc#qr-codes`.
+- Compartilhar também gera o material A4 em PDF, com o nome e o QR da própria empresa. O download exige aprovação e assinatura válida e não aceita escolher outra empresa pela URL.
+- O histórico fica em Minha página e guarda até 30 versões do conteúdo e dos botões. Restaurar salva o estado anterior e verifica alterações concorrentes. Não altera endereço, usuários, permissões, aprovação ou assinatura; não recupera arquivos de imagem excluídos.
+- A situação da plaquinha fica em Assinatura e pode ser acompanhada antes de contratar a mensalidade. As etapas físicas são independentes do acesso ao software.
+- Na administração, Alertas acompanha falhas autenticadas do webhook, ativação e renovação. Marcar como visto não resolve a falha; a resolução depende dos registros processados e da situação real. Uma tarefa no banco verifica as condições a cada cinco minutos, sem enviar mensagens externas.
+- O funil administrativo conta contas cadastradas no período, confirmação, aprovação, pagamento com evidência no ledger e página pronta. Assinaturas legadas sem evidência são apresentadas separadamente. A prontidão indica identidade, contato/botão e acesso vigente; não mede uma venda ou visita.
+- Plaquinhas físicas têm serial gerado no servidor, vínculo com empresa, etapas sequenciais e arquivamento. O vínculo fica fixo após iniciar a produção. Esse cadastro não grava a TAG nem concede licença.
+
+## Primeira entrada do administrador
+
+Ao entrar, o administrador segue para `/seguranca-admin`. Dê um nome ao autenticador, leia o QR privado com um aplicativo TOTP e informe os seis números exibidos. A central administrativa abre somente após a confirmação. Cadastre também um autenticador de reserva em outro dispositivo. Redefinir a senha não remove a segunda etapa; se todos os dispositivos forem perdidos, o responsável do projeto precisa verificar a titularidade e recuperar a conta pelo Supabase. Nunca compartilhe o QR, a chave de configuração ou os códigos.
 - Resultados compara períodos de 7, 30 ou 90 dias e acompanha contatos diretos apenas por categoria, sem armazenar números de telefone. A média de cliques por visita não deve ser interpretada como taxa de conversão.
 
 ## Controles de acesso e revisão de segurança
@@ -72,4 +83,4 @@ O webhook processa o pagamento e o ledger na mesma transação; retentativas nã
 
 A regressão SQL em `tests/paid-entitlements.sql` cobre acesso gratuito, isolamento de empresas, papéis e armazenamento. `tests/request-identity.sql` cobre e-mails não confirmados ou de terceiros. `tests/cakto-order-security.sql` cobre pagamentos, períodos e estornos. Os testes usam transações com rollback; nunca libere assinaturas fictícias persistentes em produção.
 
-Configurações que dependem do proprietário no Supabase: validar remetente/SMTP e entrega real dos e-mails; habilitar [proteção contra senhas vazadas](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection) conforme disponibilidade do plano. Autenticação de dois fatores na conta administrativa também é recomendada. Nenhuma auditoria elimina todo o risco; repita as verificações em mudanças de autorização, banco ou cobrança.
+Configurações que dependem do proprietário no Supabase: validar remetente/SMTP e entrega real dos e-mails; habilitar [proteção contra senhas vazadas](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection) conforme disponibilidade do plano. A segunda etapa na aplicação é obrigatória para administradores; proteja também as contas dos provedores. Nenhuma auditoria elimina todo o risco; repita as verificações em mudanças de autorização, banco ou cobrança.

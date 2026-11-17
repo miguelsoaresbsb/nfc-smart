@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase-browser";
 import { hasPaidSubscription } from "@/lib/subscription-access";
 import { CHECKOUT_URL, MONTHLY_PRICE_CENTS, NFC_TAG_PRICE_CENTS, formatBRL } from "@/lib/commerce";
 import "./subscription.css";
+import TagStatusPanel from "../nfc/TagStatusPanel";
 
 type SubscriptionRow = { status: "pending" | "active" | "expired" | "canceled"; plan: string; started_at: string | null; expires_at: string | null };
 const statuses = { active: "ATIVA", expired: "EXPIRADA", canceled: "CANCELADA", pending: "AGUARDANDO PAGAMENTO" };
@@ -13,6 +14,7 @@ const statuses = { active: "ATIVA", expired: "EXPIRADA", canceled: "CANCELADA", 
 export default function Subscription() {
   const [sb] = useState(createClient);
   const [subscription, setSubscription] = useState<SubscriptionRow | null>(null);
+  const [companyId, setCompanyId] = useState("");
   const [loading, setLoading] = useState(true), [error, setError] = useState("");
   const [accountEmail, setAccountEmail] = useState(""), [copyMessage, setCopyMessage] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -29,6 +31,7 @@ export default function Subscription() {
         const { data: member, error: memberError } = await sb.from("company_members").select("company_id").eq("user_id", auth.user.id).limit(1).maybeSingle();
         if (!alive) return;
         if (memberError || !member) throw new Error("membership");
+        setCompanyId(member.company_id);
         const result = await sb.from("subscriptions").select("status,plan,started_at,expires_at").eq("company_id", member.company_id).maybeSingle();
         if (!alive) return;
         if (result.error) throw result.error;
@@ -67,5 +70,6 @@ export default function Subscription() {
       </aside>
     </div>
     <section className="billing-explainer" aria-labelledby="billing-explainer-title"><h2 id="billing-explainer-title">O que acontece com o acesso?</h2><div><p><strong>Pagamento confirmado</strong>A página e as ferramentas ficam disponíveis durante o período pago.</p><p><strong>Assinatura vencida</strong>A edição e a página pública ficam bloqueadas até a regularização.</p><p><strong>Cancelamento</strong>Interrompe as próximas cobranças. O acesso continua até o fim do período já pago.</p></div><p className="billing-renewal-note">Se já contratou pela Cakto, confira a situação da renovação antes de iniciar outra contratação. {!error && <>Para acompanhar um pagamento recente, <button type="button" onClick={() => setAttempt(value => value + 1)} disabled={loading}>atualize a situação da assinatura</button>.</>}</p></section>
+    {companyId && <div id="plaquinha"><TagStatusPanel companyId={companyId}/></div>}
   </section></main>;
 }

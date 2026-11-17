@@ -5,6 +5,12 @@ INSERT INTO auth.users(id,email) VALUES
 ('afb84e8d-0ef1-4201-a001-000000000002','identity-other@example.invalid'),
 ('afb84e8d-0ef1-4201-a001-000000000003','identity-admin@example.invalid');
 INSERT INTO public.platform_admins(user_id) VALUES ('afb84e8d-0ef1-4201-a001-000000000003');
+UPDATE auth.users SET email_confirmed_at=now() WHERE id='afb84e8d-0ef1-4201-a001-000000000003';
+-- Only the test administrator is enrolled; no real identity/factor is touched.
+INSERT INTO auth.mfa_factors(id,user_id,friendly_name,factor_type,status,created_at,updated_at,secret)
+VALUES ('afb84e8d-0ef1-4201-a001-000000000301','afb84e8d-0ef1-4201-a001-000000000003','Identity regression only','totp','verified',now(),now(),'fixture-not-an-authenticator-secret');
+INSERT INTO auth.sessions(id,user_id,factor_id,aal,not_after)
+VALUES ('afb84e8d-0ef1-4201-a001-000000000302','afb84e8d-0ef1-4201-a001-000000000003','afb84e8d-0ef1-4201-a001-000000000301','aal2',now()+interval '1 day');
 SELECT set_config('request.jwt.claim.sub','afb84e8d-0ef1-4201-a001-000000000001',true);
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN
@@ -35,8 +41,10 @@ INSERT INTO public.access_requests(id,name,email,company_name,user_id) VALUES
 ('afb84e8d-0ef1-4201-a001-000000000102','Wrong account','identity-other@example.invalid','Identity forged fixture','afb84e8d-0ef1-4201-a001-000000000001'),
 ('afb84e8d-0ef1-4201-a001-000000000103','Unconfirmed','identity-other@example.invalid','Identity unconfirmed fixture','afb84e8d-0ef1-4201-a001-000000000002');
 SELECT set_config('request.jwt.claim.sub','afb84e8d-0ef1-4201-a001-000000000003',true);
+SELECT set_config('request.jwt.claims','{"sub":"afb84e8d-0ef1-4201-a001-000000000003","aal":"aal2","session_id":"afb84e8d-0ef1-4201-a001-000000000302"}',true);
 SET LOCAL ROLE authenticated;
 DO $$ DECLARE before_count bigint; after_count bigint; cid uuid; BEGIN
+  IF NOT private.is_platform_admin() THEN RAISE EXCEPTION 'Administrator fixture has no verified MFA session'; END IF;
   SELECT count(*) INTO before_count FROM public.companies;
   BEGIN
     PERFORM public.approve_access_request('afb84e8d-0ef1-4201-a001-000000000102');

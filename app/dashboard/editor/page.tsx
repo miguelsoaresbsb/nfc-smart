@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ExternalLink, ImagePlus, LoaderCircle, Palette, Save, Smartphone, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
 import { applySegmentDraft, getSegmentTemplate, missingTemplateActions, segmentTemplates } from "@/lib/segment-templates";
+import HistoryPanel from "./HistoryPanel";
 import "../segment-templates.css";
 
 type FormState = {
@@ -40,6 +41,9 @@ export default function Editor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<"logo" | "cover" | "">("");
+  const [restoring, setRestoring] = useState(false);
+  const [reloadEpoch, setReloadEpoch] = useState(0);
+  const [historyEpoch, setHistoryEpoch] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -84,10 +88,10 @@ export default function Editor() {
       if (alive) { setMessageError(true); setMsg("Não foi possível carregar seu perfil. Atualize a página para tentar novamente."); setLoading(false); }
     });
     return () => { alive = false; };
-  }, [router, sb]);
+  }, [router, sb, reloadEpoch]);
 
   async function upload(file: File | undefined, key: "logo" | "cover") {
-    if (!file || !id || uploading || saving || !canEdit) return;
+    if (!file || !id || uploading || saving || restoring || !canEdit) return;
     setMsg(""); setMessageError(false);
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
       setMessageError(true); setMsg("Formato inválido. Escolha uma imagem PNG, JPG ou WEBP."); return;
@@ -110,7 +114,7 @@ export default function Editor() {
   }
 
   async function save() {
-    if (!id || saving || uploading || !canEdit) return;
+    if (!id || saving || uploading || restoring || !canEdit) return;
     if (!f.name.trim()) { setNameError(true); setMessageError(true); setMsg("Informe o nome da empresa antes de salvar."); nameInput.current?.focus(); return; }
     setNameError(false); setSaving(true); setMsg(""); setMessageError(false);
     const draft = { ...f };
@@ -135,7 +139,7 @@ export default function Editor() {
       setMsg("Alterações salvas. Sua página pública está atualizada.");
     } catch (error) {
       setMessageError(true); setMsg(error instanceof Error ? error.message : "Não foi possível salvar. Suas alterações continuam na prévia para tentar novamente.");
-    } finally { setSaving(false); }
+    } finally { setSaving(false); setHistoryEpoch(current => current + 1); }
   }
 
   const selectedTemplate = getSegmentTemplate(selectedSegment);
@@ -167,7 +171,7 @@ export default function Editor() {
   useEffect(() => { if (msg && messageError && !nameError) feedback.current?.focus(); }, [msg, messageError, nameError]);
 
   function applyTemplate() {
-    if (!selectedTemplate || saving || uploading || !canEdit) return;
+    if (!selectedTemplate || saving || uploading || restoring || !canEdit) return;
     setF(current => applySegmentDraft(current, selectedTemplate, replaceDescription));
     setMessageError(false);
     setReplaceDescription(false);
@@ -185,9 +189,9 @@ export default function Editor() {
         <div className="section-kicker"><span className="live-dot"/> PERSONALIZAÇÃO</div>
         <div className="hub-title"><div><h1>Minha página</h1><p>Escolha um modelo, ajuste sua identidade e acompanhe a prévia antes de publicar.</p></div></div>
         <div className="page-toolbar editor-toolbar">
-          <span className={"editor-save-state" + (dirty ? " is-unsaved" : "")} role="status" aria-live="polite">{loading ? "Carregando sua página…" : !id ? "Dados indisponíveis" : saving ? "Salvando sua página…" : uploading ? "Enviando imagem…" : dirty ? "Alterações não salvas" : "Tudo salvo"}</span>
+          <span className={"editor-save-state" + (dirty ? " is-unsaved" : "")} role="status" aria-live="polite">{loading ? "Carregando sua página…" : !id ? "Dados indisponíveis" : restoring ? "Restaurando sua página…" : saving ? "Salvando sua página…" : uploading ? "Enviando imagem…" : dirty ? "Alterações não salvas" : "Tudo salvo"}</span>
           <a className="premium-btn" href="#editor-preview"><Smartphone size={15}/> Ver prévia</a>
-          <button className="premium-btn premium-btn-dark" onClick={save} disabled={saving || loading || !!uploading || !id || !dirty || !canEdit}>
+          <button className="premium-btn premium-btn-dark" onClick={save} disabled={saving || restoring || loading || !!uploading || !id || !dirty || !canEdit}>
             {saving ? <LoaderCircle size={15} className="spin"/> : <Save size={15}/>} {saving ? "Salvando…" : "Salvar alterações"}
           </button>
         </div>
@@ -195,7 +199,7 @@ export default function Editor() {
         {msg && <div id="editor-feedback" ref={feedback} tabIndex={-1} className={"editor-message" + (messageError ? " is-error" : "")} role={messageError ? "alert" : "status"}>{msg}</div>}
         {loading ? <div className="editor-loading" role="status"><LoaderCircle className="spin" aria-hidden="true"/> Carregando seu perfil…</div> : !id ? <div className="workspace-state"><h2>Vamos tentar carregar sua página novamente.</h2><p>Seu conteúdo permanece salvo. Atualize a tela para continuar a edição.</p><button type="button" className="premium-btn" onClick={() => window.location.reload()}>Tentar novamente</button></div> : (
           <div className="editor-premium-layout">
-            <fieldset className="editor-controls" disabled={!canEdit || saving || !!uploading}>
+            <fieldset className="editor-controls" disabled={!canEdit || saving || restoring || !!uploading}>
               <section className="editor-section segment-section" id="modelos">
                 <div className="editor-section-heading"><span><Sparkles size={17}/></span><div><b>Comece com um modelo</b><small>Uma base de cores e apresentação para o seu segmento.</small></div></div>
                 <label className="premium-field">Modelo por segmento
@@ -284,6 +288,10 @@ export default function Editor() {
             </aside>
           </div>
         )}
+        {!loading && id && <HistoryPanel companyId={id} canEdit={canEdit} disabled={saving || !!uploading || restoring} hasUnsavedChanges={dirty} refreshKey={String(historyEpoch)} onBusyChange={setRestoring} onRestored={notice => {
+          setSavedState(""); setMessageError(false); setNameError(false); setMsg(notice);
+          setLoading(true); setHistoryEpoch(current => current + 1); setReloadEpoch(current => current + 1);
+        }}/>}
       </section>
     </main>
   );

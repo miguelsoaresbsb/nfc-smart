@@ -7,6 +7,7 @@ import { ArrowRight, Download, ImagePlus, QrCode, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
 import PublicUrl from "../PublicUrl";
 import { getPublicPageUrl } from "@/lib/public-url";
+import PrintKitPanel from "./PrintKitPanel";
 
 type QrItem = { id: string; name: string; image_url: string; storage_path: string | null; description: string | null; position: number; enabled: boolean };
 export default function SharePage() {
@@ -113,6 +114,7 @@ export default function SharePage() {
     <div className="section-kicker">COMPARTILHAR</div>
     <div className="hub-title"><div><h1>Uma página. <span>Muitas conexões.</span></h1><p>Use sempre o mesmo endereço na plaquinha NFC. Suas edições atualizam a página sem precisar regravar a TAG.</p></div></div>
     {company && <PublicUrl slug={company.slug}/>}
+    <PrintKitPanel disabled={loading || !ready}/>
     {loading && <p role="status">Carregando os dados da sua página…</p>}
     {!loading && !ready && <div className="workspace-state"><p>Precisamos carregar a biblioteca antes de gerar ou enviar um QR Code.</p><button type="button" className="premium-btn" onClick={() => window.location.reload()}>Tentar novamente</button></div>}
     {!loading && ready && !canEdit && <p className="notice">Você pode copiar o endereço e baixar os códigos. A edição é feita pelo administrador da empresa.</p>}

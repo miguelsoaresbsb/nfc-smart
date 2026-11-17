@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
         { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), clipboard-read=(self), clipboard-write=(self)" },
         { key: "Content-Security-Policy", value: csp },
       ] },
-      ...["/auth/:path*", "/api/auth/:path*", "/redefinir-senha", "/recuperar-senha"].map(source => ({
+      ...["/auth/:path*", "/api/auth/:path*", "/redefinir-senha", "/recuperar-senha", "/seguranca-admin"].map(source => ({
         source,
         headers: [{ key: "Cache-Control", value: "private, no-store" }, { key: "Referrer-Policy", value: "no-referrer" }],
       })),
